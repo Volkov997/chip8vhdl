@@ -26,7 +26,7 @@ displayGrid = []
 for x in range(DISP_W):
     v=[]
     for y in range(DISP_H):
-        r = canv.create_rectangle(x*PIX, y*PIX, (x+1)*PIX, (y+1)*PIX,fill="black",width=0,outline="#333")
+        r = canv.create_rectangle(x*PIX, y*PIX, (x+1)*PIX, (y+1)*PIX,fill="white",width=0,outline="#333")
         v.append(r)
     displayGrid.append(v)
 
@@ -61,7 +61,7 @@ with open(progFile, "rb") as f:
 progAddress = 0x200
 
 clockSimHz = 1e5
-realClockHz = 1
+realClockHz = 400
 
 @cocotb.test
 async def run(main):

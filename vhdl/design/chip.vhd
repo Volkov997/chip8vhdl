@@ -46,11 +46,17 @@ architecture Rtl of chip is
     type I_TYPE is
     (EMPTY, I_00E0, I_1NNN, I_6XNN, I_7XNN, I_ANNN, I_DXYN);
     signal instruction : I_TYPE := EMPTY;
-    signal subcounter : unsigned(7 downto 0) := (others => '0');
+    signal subcounter : unsigned(11 downto 0) := (others => '0');
 
     --debug signal
     signal ibytes_sig : std_logic_vector(15 downto 0) := (others => '0');
+
+    signal disp_clockw : std_logic := '0';
 begin
+
+    with disp_clockw select
+    display_w <= clock when '1',
+    '0' when others;
 
     Exec : process (clock, chipEN) is
         variable Q : unsigned(3 downto 0) := (others => '0');
@@ -74,8 +80,20 @@ begin
 
             case instruction is
 
-                when I_00E0 => -- jump
-                    instruction <= I_00E0;
+                when I_00E0 => -- clear screen
+                    -- very unoptimised, taking >3s at 700Hz
+
+                    display_dout(11) <= '0';
+                    display_dout(10 downto 0) <= std_logic_vector(subcounter(10 downto 0));
+
+                    case to_integer(subcounter) is
+                        when 0 =>
+                            disp_clockw <= '1'; --writes to display with every clock pulse now
+                            -- position 0 written at clock pulse 1
+                        when 2048 => -- last bit was written 
+                            disp_clockw <= '0';
+                        when others => null;
+                    end case;
 
                 when EMPTY =>
                     --only happens if not reset to 0, at the end of process

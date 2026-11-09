@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<testsuites name="cocotb tests"><testsuite name="run" errors="0" failures="1" skipped="0" tests="1" time="10.328" timestamp="2026-11-09T22:15:13.940745+00:00" hostname="SkibidiPotato"><testcase classname="run" name="run" time="10.328"><failure message="" type="KeyboardInterrupt">Traceback (most recent call last):
+<testsuites name="cocotb tests"><testsuite name="run" errors="0" failures="1" skipped="0" tests="1" time="6.751" timestamp="2026-11-09T22:43:20.191712+00:00" hostname="SkibidiPotato"><testcase classname="run" name="run" time="6.751"><failure message="" type="KeyboardInterrupt">Traceback (most recent call last):
   File "/home/Simon/Sync/dev/chip8/vhdl/run.py", line 97, in run
     interface.update()
     ~~~~~~~~~~~~~~~~^^
@@ -7,5 +7,5 @@
     self.tk.call('update')
     ~~~~~~~~~~~~^^^^^^^^^^
 KeyboardInterrupt
-</failure><properties><property name="cocotb" value="True" /><property name="random_seed" value="1794262503" /><property name="file" value="/home/Simon/Sync/dev/chip8/vhdl/run.py" /><property name="line" value="66" /><property name="sim_time_unit" value="ns" /><property name="sim_time_start" value="0.0" /><property name="sim_time_stop" value="966000.0" /><property name="sim_time_duration" value="966000.0" /><property name="sim_time_ratio" value="93534.62009786147" /></properties><system-err>Test failed with COCOTB_RANDOM_SEED=1794262503
+</failure><properties><property name="cocotb" value="True" /><property name="random_seed" value="1794264193" /><property name="file" value="/home/Simon/Sync/dev/chip8/vhdl/run.py" /><property name="line" value="66" /><property name="sim_time_unit" value="ns" /><property name="sim_time_start" value="0.0" /><property name="sim_time_stop" value="26726100.0" /><property name="sim_time_duration" value="26726100.0" /><property name="sim_time_ratio" value="3958680.7120645684" /></properties><system-err>Test failed with COCOTB_RANDOM_SEED=1794264193
 </system-err></testcase></testsuite></testsuites>
