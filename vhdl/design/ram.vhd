@@ -11,13 +11,11 @@ use IEEE.STD_LOGIC_1164.all;
 use IEEE.Numeric_Std.all;
 
 entity ram is
-  generic (
-    address_size : integer := 12
-  );
+  --generic (address_size : integer := 12);
   port (
     clock : in std_logic;
     we : in std_logic;
-    address : in std_logic_vector(address_size - 1 downto 0);
+    address : in std_logic_vector(11 downto 0);
     datain : in std_logic_vector(7 downto 0);
     dataout : out std_logic_vector(7 downto 0)
   );
@@ -41,7 +39,6 @@ begin
       read_address <= address;
     end if;
   end process RamProc;
-
   dataout <= ram_i(to_integer(unsigned(read_address)));
 
 end architecture Rtl;

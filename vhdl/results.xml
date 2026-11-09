@@ -1,11 +1,11 @@
 <?xml version='1.0' encoding='utf-8'?>
-<testsuites name="cocotb tests"><testsuite name="run" errors="0" failures="1" skipped="0" tests="1" time="4.619" timestamp="2026-11-08T19:29:13.327190+00:00" hostname="SkibidiPotato"><testcase classname="run" name="run" time="4.619"><failure message="" type="KeyboardInterrupt">Traceback (most recent call last):
-  File "/home/Simon/Sync/dev/chip8/vhdl/run.py", line 86, in run
+<testsuites name="cocotb tests"><testsuite name="run" errors="0" failures="1" skipped="0" tests="1" time="10.328" timestamp="2026-11-09T22:15:13.940745+00:00" hostname="SkibidiPotato"><testcase classname="run" name="run" time="10.328"><failure message="" type="KeyboardInterrupt">Traceback (most recent call last):
+  File "/home/Simon/Sync/dev/chip8/vhdl/run.py", line 97, in run
     interface.update()
     ~~~~~~~~~~~~~~~~^^
   File "/usr/lib/python3.14/tkinter/__init__.py", line 1493, in update
     self.tk.call('update')
     ~~~~~~~~~~~~^^^^^^^^^^
 KeyboardInterrupt
-</failure><properties><property name="cocotb" value="True" /><property name="random_seed" value="1794166148" /><property name="file" value="/home/Simon/Sync/dev/chip8/vhdl/run.py" /><property name="line" value="65" /><property name="sim_time_unit" value="ns" /><property name="sim_time_start" value="0.0" /><property name="sim_time_stop" value="6040000.0" /><property name="sim_time_duration" value="6040000.0" /><property name="sim_time_ratio" value="1307656.4487948031" /></properties><system-err>Test failed with COCOTB_RANDOM_SEED=1794166148
+</failure><properties><property name="cocotb" value="True" /><property name="random_seed" value="1794262503" /><property name="file" value="/home/Simon/Sync/dev/chip8/vhdl/run.py" /><property name="line" value="66" /><property name="sim_time_unit" value="ns" /><property name="sim_time_start" value="0.0" /><property name="sim_time_stop" value="966000.0" /><property name="sim_time_duration" value="966000.0" /><property name="sim_time_ratio" value="93534.62009786147" /></properties><system-err>Test failed with COCOTB_RANDOM_SEED=1794262503
 </system-err></testcase></testsuite></testsuites>

@@ -1,5 +1,6 @@
 import cocotb
 from cocotb.triggers import *
+from cocotb.handle import *
 import random
 
 async def pulseH(pin, dur):
@@ -53,14 +54,14 @@ fontData = bytearray([
 fontAddress = 0x50
 
 
-progFile = "../programs/test_opcode.ch8"
+progFile = "../programs/single.ch8"
 progData = None
 with open(progFile, "rb") as f:
     progData = bytearray(f.read())  
 progAddress = 0x200
 
 clockSimHz = 1e5
-realClockHz = 10
+realClockHz = 1
 
 @cocotb.test
 async def run(main):
@@ -70,18 +71,28 @@ async def run(main):
 
     #callbacks
     cocotb.start_soon(displayUpdate(chip))
+    cocotb.start_soon(monitor(main))
 
-    main.chipEN.value = 0
-    await write_ram(ram,fontData,fontAddress)
-    await write_ram(ram,progData,progAddress)
+    main.clockMain.value = 0
+
+    chip.chipEN.value = 0
+    await write_ram(main,fontData,fontAddress)
+    await write_ram(main,progData,progAddress)
 
     chip.PC.value = 0x200
+    await pulseH(main.clockMain,1e9/clockSimHz)
+    await pulseH(main.clockMain,1e9/clockSimHz)
 
-    main.chipEN.value = 1
+
+    chip.chipEN.value = 1
+
+    await dump_ram(ram,80,0x1F0)
 
     lastClock = 0
     clockVal = 1
     cycles = 0
+
+
     while True:
         interface.update()
         if (time.time() - lastClock > 1/realClockHz/2):
@@ -94,10 +105,18 @@ async def run(main):
             if (clockVal == 1):
                 cocotb.log.info("RE "+str(cycles))
                 cycles +=1
-        
+                await Timer(100,unit='ns')
+                if (chip.err.value != 0):
+                    cocotb.log.error(f"chip error signal {chip.err.value}")
+                cocotb.log.info(f"instruction {chip.instruction.value} , substep {chip.subcounter.value}")
+                cocotb.log.info(f"PC @ {chip.pc.value}, raw instruction {chip.ibytes_sig.value}")
+                cocotb.log.info(f"{main.Sram_address.value} => ram => {ram.dataout.value}")
     pass
 
-
+async def monitor(dut):
+    while True:
+        await RisingEdge(dut.clockMain)
+        await Timer(1, unit="ns")
 
 async def displayUpdate(dut):
     """A background monitor task."""
@@ -117,13 +136,15 @@ async def displayUpdate(dut):
 
 async def write_ram(device,data,start):
     cocotb.log.info("writing "+str(len(data))+" bytes at "+hex(start))
-    device.we.value = True
+    device.Sram_we.value = Force(True)
     for i in range(len(data)):
-        device.address.value = start+i
-        device.datain.value = data[i]
-        await pulseH(device.clock,1e9/clockSimHz)
-    device.we.value = False
-
+        device.Sram_address.value = Force(start+i)
+        device.Sram_dw.value = Force(data[i])
+        await pulseH(device.clockMain,1e9/clockSimHz)
+    device.Sram_we.value = Release()
+    device.Sram_address.value = Release()
+    device.Sram_dw.value = Release()
+"""
 async def read_ram(device,bytes,start):
     cocotb.log.info("reading "+str(bytes)+" bytes at "+hex(start))
     device.we.value = False
@@ -134,6 +155,7 @@ async def read_ram(device,bytes,start):
         data[i] = device.dataout.value
 
     return data
+"""
 
 async def dump_ram(device,bytes,start):
     data = device.ram_i.value[start:start+bytes]
