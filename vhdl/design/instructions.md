@@ -1,6 +1,6 @@
 ## Basic Instructions
 
-### `00E0` clear screen
+### `00E0` clear screen +
 
 64\*32\*2 = 4096 instructions, handled through display submodule.
 could be optimized with different display interface

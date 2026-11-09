@@ -54,14 +54,17 @@ fontData = bytearray([
 fontAddress = 0x50
 
 
-progFile = "../programs/single.ch8"
+progFile = "../programs/testreg.ch8"
 progData = None
 with open(progFile, "rb") as f:
     progData = bytearray(f.read())  
 progAddress = 0x200
 
 clockSimHz = 1e5
-realClockHz = 400
+realClockHz = 4
+
+def reg(i):
+    return "V"+hex(i)[2::]
 
 @cocotb.test
 async def run(main):
@@ -111,6 +114,7 @@ async def run(main):
                 cocotb.log.info(f"instruction {chip.instruction.value} , substep {chip.subcounter.value}")
                 cocotb.log.info(f"PC @ {chip.pc.value}, raw instruction {chip.ibytes_sig.value}")
                 cocotb.log.info(f"{main.Sram_address.value} => ram => {ram.dataout.value}")
+                cocotb.log.info(" ".join([ f"{reg(i)}: {hex(chip[reg(i)].value)[2::]}," for i in range(16)]))
     pass
 
 async def monitor(dut):

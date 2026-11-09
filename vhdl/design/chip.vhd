@@ -76,11 +76,11 @@ begin
         end if;
 
         if (chipEN = '1' and rising_edge(clock)) then
-            subcounter <= subcounter + 1;
-
             case instruction is
 
                 when I_00E0 => -- clear screen
+                    subcounter <= subcounter + 1;
+
                     -- very unoptimised, taking >3s at 700Hz
 
                     display_dout(11) <= '0';
@@ -90,13 +90,61 @@ begin
                         when 0 =>
                             disp_clockw <= '1'; --writes to display with every clock pulse now
                             -- position 0 written at clock pulse 1
-                        when 2048 => -- last bit was written 
+                        when 2047 => -- last bit written this clock cycle
                             disp_clockw <= '0';
+                            instruction <= EMPTY;
+                            subcounter <= to_unsigned(0, subcounter'length);
                         when others => null;
                     end case;
 
+                when I_1NNN => -- jump to NNN
+                    PC(11 downto 0) <= NNN;
+                    instruction <= EMPTY;
+
+                when I_6XNN => -- set VX to NN
+                    case to_integer(X) is
+                        when 0 => V0 <= NN;
+                        when 1 => V1 <= NN;
+                        when 2 => V2 <= NN;
+                        when 3 => V3 <= NN;
+                        when 4 => V4 <= NN;
+                        when 5 => V5 <= NN;
+                        when 6 => V6 <= NN;
+                        when 7 => V7 <= NN;
+                        when 8 => V8 <= NN;
+                        when 9 => V9 <= NN;
+                        when 10 => VA <= NN;
+                        when 11 => VB <= NN;
+                        when 12 => VC <= NN;
+                        when 13 => VD <= NN;
+                        when 14 => VE <= NN;
+                        when others => VF <= NN;
+                    end case;
+                    instruction <= EMPTY;
+
+                when I_7XNN => -- increment VX by NN
+                    case to_integer(X) is
+                        when 0 => V0 <= V0 + NN;
+                        when 1 => V1 <= V1 + NN;
+                        when 2 => V2 <= V2 + NN;
+                        when 3 => V3 <= V3 + NN;
+                        when 4 => V4 <= V4 + NN;
+                        when 5 => V5 <= V5 + NN;
+                        when 6 => V6 <= V6 + NN;
+                        when 7 => V7 <= V7 + NN;
+                        when 8 => V8 <= V8 + NN;
+                        when 9 => V9 <= V9 + NN;
+                        when 10 => VA <= VA + NN;
+                        when 11 => VB <= VB + NN;
+                        when 12 => VC <= VC + NN;
+                        when 13 => VD <= VD + NN;
+                        when 14 => VE <= VE + NN;
+                        when others => VF <= VF + NN;
+                    end case;
+                    instruction <= EMPTY;
+
                 when EMPTY =>
-                    --only happens if not reset to 0, at the end of process
+                    subcounter <= subcounter + 1;
 
                     case to_integer(subcounter) is
                         when 0 =>
@@ -123,6 +171,12 @@ begin
 
                             if ibytes = x"00E0" then
                                 instruction <= I_00E0;
+                            elsif Q = x"1" then
+                                instruction <= I_1NNN;
+                            elsif Q = x"6" then
+                                instruction <= I_6XNN;
+                            elsif Q = x"7" then
+                                instruction <= I_7XNN;
                             end if;
                         when others => null;
                     end case; --subcase
