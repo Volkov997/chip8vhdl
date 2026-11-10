@@ -22,4 +22,8 @@ addition using the unsigned type
 
 set I to NNN
 
-### `DXYN` draw
+### `DXYN` draw +
+
+draw N pixels tall sprite, at VX,VY
+reads sprite from register I
+flips pixels. already on pixels in area set VF to 1
