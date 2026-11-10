@@ -1,27 +1,64 @@
 # Chip-8 implementation using VHDL
 
+## Summary
+
 This is a project made for hackclub [chipper](https://chipper.hackclub.com/), designing a chip-8 interpreter in VHDL. Since this is my very first time using a HDL, this is not really aimed to be an actual FPGA-ready design ( although i am making it fully synthesizable for simulation ).
 
 The interface portion of the language is implemented using cocotb in python. This handles loading the program data into a RAM component and letting the user interact with the simulated circuit with a gui.
 
-### Component ports
+## Component ports
 
 These are the connections which the Simulated chip uses to interact with external components:
 
 - `clock` and `chipEN`
 - `ram_address`, `ram_din`/`ram_dout` and `ram_we`
     - read/writing single bytes from a synchronous RAM, using a 12 bit address (4096 locations)
-- `display_dout`, `display_sig`
-    - contains 12 bits of data to write to the display + a write signal
-    - highest bit is black/white value, remaining specify the position in a 64x32 grid
+- `display_dout`, `display_clk`
+    - 16 bit signal consisting of 8 pixel values and an 8 bit position value
+    - clock signal that is synced to the main clock when writing to display.
 - `beep`
     - output signal to the buzzer
 - `keypad`
     - 16bit signal with 1bit per key, might change to matrix adressing instead to match a common keypad ( 4 input columns, 4 output rows ) or implement a seperate component to do that
+- also implements an error signal `err`, used for debugging if an undefined instruction or a stack overflow occurs
 
-### Status
+## Status
 
-#### Working test interface
+### Implemented DXYN
+
+The Drawing instruction now works!
+Simple sprite test ( sprite 3C7E7E3C at 2,2):
+![small orb sprite](assets/sprite.png)
+
+With this, the current instructions suffice to run the IBM test program:
+![IBM test program with bugged instruction](assets/ibmwrong.png)
+Its displayed in the wrong position due to some incorrect calculation of the offset, but the logo itself is visible.
+Corrected version:
+![IBM test program](assets/ibm.png)
+
+### Updated and seperate display driver
+
+This version now implements a 2048 bit display buffer, and a seperate clocked display driver which refreshes 8 pixels per clock cycle. Screen clearing is now a lot faster and doesnt block other instructions.
+
+Test display clear also writes the bytes 0xAABBCCDD in the middle of the display, to test the buffer working properly.
+![display clearing process](assets/dispFast.png)
+
+### Implemented instructions 1NNN, 6XNN and 7XNN
+
+debug of a simple program consisting of these 3 instructions ( see top left ) setting V4 to E0 and counting up by 1:
+![simple counter program](assets/simple.png)
+
+### Running 00E0
+
+Running a program consisting of just the single instruction `00E0`, clearing the screen ( takes 2047 clock cycles)
+![display cleared roughly 2/3rds of the way](assets/clearing.png)
+
+### Parsing opcodes from RAM
+
+Reading the two byte opcode `00E0` into a register over 4 clock cycles
+![output of the instruction debug](assets/opcode.png)
+
+### Working test interface
 
 Interface harness can load and dump the connected RAM, aswell as recieve a rudimentary display signal from the simulation. Currently the chip just outputs a test signal, writing white pixels into diagonal lines.
 
