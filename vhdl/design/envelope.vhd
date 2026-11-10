@@ -21,7 +21,7 @@ begin
             ram_din => Sram_dr,
             ram_dout => Sram_dw,
             display_dout => open,
-            display_w => open,
+            display_clk => open,
             beep => open,
             keypad => (others => '0'),
             chipEN => open,

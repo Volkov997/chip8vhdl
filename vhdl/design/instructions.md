@@ -1,18 +1,25 @@
 ## Basic Instructions
 
-### `00E0` clear screen +
+### `00E0` +
 
-64\*32\*2 = 4096 instructions, handled through display submodule.
-could be optimized with different display interface
+clear the display buffer and set the driver to update
 
-### `1NNN` jump
+### `1NNN` +
 
-### `6XNN` set VX
+jump to NNN
 
-### `7XNN` add to VX
+### `6XNN` +
+
+set VX to NN
+
+### `7XNN` +
+
+add NN to VX
 
 addition using the unsigned type
 
-### `ANNN` set I
+### `ANNN` +
+
+set I to NNN
 
 ### `DXYN` draw

@@ -54,14 +54,14 @@ fontData = bytearray([
 fontAddress = 0x50
 
 
-progFile = "../programs/testreg.ch8"
+progFile = "../programs/single.ch8"
 progData = None
 with open(progFile, "rb") as f:
     progData = bytearray(f.read())  
 progAddress = 0x200
 
 clockSimHz = 1e5
-realClockHz = 4
+realClockHz = 40
 
 def reg(i):
     return "V"+hex(i)[2::]
@@ -125,18 +125,20 @@ async def monitor(dut):
 async def displayUpdate(dut):
     """A background monitor task."""
     while True:
-        await RisingEdge(dut.display_w)
+        await RisingEdge(dut.display_clk)
         signal = dut.display_dout.value
         cocotb.log.info(f"Display Signal: {signal}")
-        val = signal[11] #VYYYYYXXXXXX
-        posY = int(signal[10:6])
-        posX = int(signal[5:0])
-        cocotb.log.info(f"{val} {posX} {posY}")
+        val = list(signal[15:8]) #VVVVVVVVPPPPPPPP
+        pos = int(signal[7:0])
+        posX = (pos*8) % 64
+        posY = (pos*8) // 64
+        cocotb.log.info(f"{signal[15:8]} {posX} {posY}")
 
-        target = displayGrid[posX][posY]
-        p,q = [posX/63,posY/31]
-        color = "black" if val==0 else "#" + "".join(f"{int(255 * c):02x}" for c in [p,1-p*q,q] )
-        canv.itemconfig(target, fill=color)
+        for o in range(8):
+            target = displayGrid[posX+o][posY]
+            p,q = [(posX+o)/63,posY/31]
+            color = "black" if val[o]==0 else "#" + "".join(f"{int(255 * c):02x}" for c in [p,1-p*q,q] )
+            canv.itemconfig(target, fill=color)
 
 async def write_ram(device,data,start):
     cocotb.log.info("writing "+str(len(data))+" bytes at "+hex(start))

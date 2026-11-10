@@ -9,8 +9,8 @@ entity chip is
         ram_address : out std_logic_vector (11 downto 0);
         ram_din : in std_logic_vector (7 downto 0);
         ram_dout : out std_logic_vector (7 downto 0);
-        display_dout : out std_logic_vector (11 downto 0); -- one bit of value, 11 bits of address
-        display_w : out std_logic := '0'; -- write signal
+        display_dout : out std_logic_vector (15 downto 0); -- 1 byte of values, 1 byte position
+        display_clk : out std_logic := '0'; -- display write signal
         beep : out std_logic := '0';
         keypad : in std_logic_vector (15 downto 0);
         chipEN : in std_logic := '1';
@@ -43,6 +43,9 @@ architecture Rtl of chip is
     signal VE : unsigned(7 downto 0) := (others => '0');
     signal VF : unsigned(7 downto 0) := (others => '0');
 
+    signal display_buf : std_logic_vector(0 to 64 * 32) := (others => '0');
+    signal display_update : std_logic := '0';
+
     type I_TYPE is
     (EMPTY, I_00E0, I_1NNN, I_6XNN, I_7XNN, I_ANNN, I_DXYN);
     signal instruction : I_TYPE := EMPTY;
@@ -51,12 +54,31 @@ architecture Rtl of chip is
     --debug signal
     signal ibytes_sig : std_logic_vector(15 downto 0) := (others => '0');
 
-    signal disp_clockw : std_logic := '0';
+    signal XSel : unsigned(3 downto 0) := (others => '0');
+    signal YSel : unsigned(3 downto 0) := (others => '0');
+    signal VXS : unsigned(7 downto 0) := (others => '0');
+    signal VYS : unsigned(7 downto 0) := (others => '0');
 begin
+    dispdriver : entity work.dispdriver
+        port map(
+            clock => clock,
+            update => display_update,
+            buf => display_buf,
+            dispClk => display_clk,
+            data => display_dout
+        );
 
-    with disp_clockw select
-    display_w <= clock when '1',
-    '0' when others;
+    --read from VX/VY
+    with to_integer(XSel) select
+    VXS <= V0 when 0, V1 when 1, V2 when 2, V3 when 3,
+           V4 when 4, V5 when 5, V6 when 6, V7 when 7,
+           V8 when 8, V9 when 9, VA when 10, VB when 11,
+           VC when 12, VD when 13, VE when 14, VF when others;
+    with to_integer(YSel) select
+    VYS <= V0 when 0, V1 when 1, V2 when 2, V3 when 3,
+           V4 when 4, V5 when 5, V6 when 6, V7 when 7,
+           V8 when 8, V9 when 9, VA when 10, VB when 11,
+           VC when 12, VD when 13, VE when 14, VF when others;
 
     Exec : process (clock, chipEN) is
         variable Q : unsigned(3 downto 0) := (others => '0');
@@ -66,81 +88,38 @@ begin
         variable NN : unsigned(7 downto 0) := (others => '0');
         variable NNN : unsigned(11 downto 0) := (others => '0');
         variable ibytes : std_logic_vector(15 downto 0) := (others => '0');
+        --variable calc : unsigned(8 downto 0) := (others => '0');
+        variable VX : unsigned(7 downto 0) := (others => '0');
+        variable VY : unsigned(7 downto 0) := (others => '0');
+        variable wVX : std_logic := '0';
+        variable wVY : std_logic := '0';
 
     begin
-
-        --default if not assigned differently, always have ram ready to read
-        if (rising_edge(clock)) then
-            --;
-            --ram_address <= std_logic_vector(PC(11 downto 0));
-        end if;
-
         if (chipEN = '1' and rising_edge(clock)) then
             case instruction is
 
                 when I_00E0 => -- clear screen
-                    subcounter <= subcounter + 1;
-
-                    -- very unoptimised, taking >3s at 700Hz
-
-                    display_dout(11) <= '0';
-                    display_dout(10 downto 0) <= std_logic_vector(subcounter(10 downto 0));
-
-                    case to_integer(subcounter) is
-                        when 0 =>
-                            disp_clockw <= '1'; --writes to display with every clock pulse now
-                            -- position 0 written at clock pulse 1
-                        when 2047 => -- last bit written this clock cycle
-                            disp_clockw <= '0';
-                            instruction <= EMPTY;
-                            subcounter <= to_unsigned(0, subcounter'length);
-                        when others => null;
-                    end case;
+                    display_buf <= (others => '0');
+                    display_buf(0 to 0 + 32 - 1) <= x"aabbccdd";
+                    display_update <= '1';
+                    instruction <= EMPTY;
 
                 when I_1NNN => -- jump to NNN
                     PC(11 downto 0) <= NNN;
                     instruction <= EMPTY;
 
                 when I_6XNN => -- set VX to NN
-                    case to_integer(X) is
-                        when 0 => V0 <= NN;
-                        when 1 => V1 <= NN;
-                        when 2 => V2 <= NN;
-                        when 3 => V3 <= NN;
-                        when 4 => V4 <= NN;
-                        when 5 => V5 <= NN;
-                        when 6 => V6 <= NN;
-                        when 7 => V7 <= NN;
-                        when 8 => V8 <= NN;
-                        when 9 => V9 <= NN;
-                        when 10 => VA <= NN;
-                        when 11 => VB <= NN;
-                        when 12 => VC <= NN;
-                        when 13 => VD <= NN;
-                        when 14 => VE <= NN;
-                        when others => VF <= NN;
-                    end case;
+                    VX := NN;
+                    wVX := '1';
                     instruction <= EMPTY;
 
                 when I_7XNN => -- increment VX by NN
-                    case to_integer(X) is
-                        when 0 => V0 <= V0 + NN;
-                        when 1 => V1 <= V1 + NN;
-                        when 2 => V2 <= V2 + NN;
-                        when 3 => V3 <= V3 + NN;
-                        when 4 => V4 <= V4 + NN;
-                        when 5 => V5 <= V5 + NN;
-                        when 6 => V6 <= V6 + NN;
-                        when 7 => V7 <= V7 + NN;
-                        when 8 => V8 <= V8 + NN;
-                        when 9 => V9 <= V9 + NN;
-                        when 10 => VA <= VA + NN;
-                        when 11 => VB <= VB + NN;
-                        when 12 => VC <= VC + NN;
-                        when 13 => VD <= VD + NN;
-                        when 14 => VE <= VE + NN;
-                        when others => VF <= VF + NN;
-                    end case;
+                    VX := VXS + NN;
+                    wVX := '1';
+                    instruction <= EMPTY;
+
+                when I_ANNN =>
+                    I(11 downto 0) <= NNN;
                     instruction <= EMPTY;
 
                 when EMPTY =>
@@ -177,6 +156,8 @@ begin
                                 instruction <= I_6XNN;
                             elsif Q = x"7" then
                                 instruction <= I_7XNN;
+                            elsif Q = x"A" then
+                                instruction <= I_ANNN;
                             end if;
                         when others => null;
                     end case; --subcase
@@ -184,7 +165,58 @@ begin
                     err(3) <= '1';
                     instruction <= EMPTY;
             end case; -- instruction case
+
             ibytes_sig <= ibytes;
+
+            if (wVX = '1') then
+                --write to VX/VY
+                case to_integer(X) is
+                    when 0 => V0 <= VX;
+                    when 1 => V1 <= VX;
+                    when 2 => V2 <= VX;
+                    when 3 => V3 <= VX;
+                    when 4 => V4 <= VX;
+                    when 5 => V5 <= VX;
+                    when 6 => V6 <= VX;
+                    when 7 => V7 <= VX;
+                    when 8 => V8 <= VX;
+                    when 9 => V9 <= VX;
+                    when 10 => VA <= VX;
+                    when 11 => VB <= VX;
+                    when 12 => VC <= VX;
+                    when 13 => VD <= VX;
+                    when 14 => VE <= VX;
+                    when others => VF <= VX;
+                end case;
+            end if;
+            if (wVY = '1') then
+                case to_integer(Y) is
+                    when 0 => V0 <= VY;
+                    when 1 => V1 <= VY;
+                    when 2 => V2 <= VY;
+                    when 3 => V3 <= VY;
+                    when 4 => V4 <= VY;
+                    when 5 => V5 <= VY;
+                    when 6 => V6 <= VY;
+                    when 7 => V7 <= VY;
+                    when 8 => V8 <= VY;
+                    when 9 => V9 <= VY;
+                    when 10 => VA <= VY;
+                    when 11 => VB <= VY;
+                    when 12 => VC <= VY;
+                    when 13 => VD <= VY;
+                    when 14 => VE <= VY;
+                    when others => VF <= VY;
+                end case;
+            end if;
+            wVX := '0';
+            wVY := '0';
+            XSel <= X;
+            YSel <= Y;
+
+            if display_update = '1' then
+                display_update <= '0';
+            end if;
         end if;
     end process Exec;
 end architecture Rtl;

@@ -1,11 +1,14 @@
 <?xml version='1.0' encoding='utf-8'?>
-<testsuites name="cocotb tests"><testsuite name="run" errors="0" failures="1" skipped="0" tests="1" time="17.261" timestamp="2026-11-09T23:19:06.706594+00:00" hostname="SkibidiPotato"><testcase classname="run" name="run" time="17.261"><failure message="" type="KeyboardInterrupt">Traceback (most recent call last):
-  File "/home/Simon/Sync/dev/chip8/vhdl/run.py", line 100, in run
-    interface.update()
-    ~~~~~~~~~~~~~~~~^^
-  File "/usr/lib/python3.14/tkinter/__init__.py", line 1493, in update
-    self.tk.call('update')
-    ~~~~~~~~~~~~^^^^^^^^^^
-KeyboardInterrupt
-</failure><properties><property name="cocotb" value="True" /><property name="random_seed" value="1794266329" /><property name="file" value="/home/Simon/Sync/dev/chip8/vhdl/run.py" /><property name="line" value="69" /><property name="sim_time_unit" value="ns" /><property name="sim_time_start" value="0.0" /><property name="sim_time_stop" value="1576900.0" /><property name="sim_time_duration" value="1576900.0" /><property name="sim_time_ratio" value="91354.08164987504" /></properties><system-err>Test failed with COCOTB_RANDOM_SEED=1794266329
+<testsuites name="cocotb tests"><testsuite name="run" errors="0" failures="1" skipped="0" tests="1" time="1.816" timestamp="2026-11-10T11:33:50.055182+00:00" hostname="SkibidiPotato"><testcase classname="run" name="run" time="1.816"><failure message="invalid command name &quot;.!canvas&quot;" type="TclError">Traceback (most recent call last):
+  File "/home/Simon/Sync/dev/chip8/vhdl/run.py", line 141, in displayUpdate
+    canv.itemconfig(target, fill=color)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/tkinter/__init__.py", line 3154, in itemconfigure
+    return self._configure(('itemconfigure', tagOrId), cnf, kw)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/tkinter/__init__.py", line 1847, in _configure
+    self.tk.call(_flatten((self._w, cmd)) + self._options(cnf))
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_tkinter.TclError: invalid command name ".!canvas"
+</failure><properties><property name="cocotb" value="True" /><property name="random_seed" value="1794310428" /><property name="file" value="/home/Simon/Sync/dev/chip8/vhdl/run.py" /><property name="line" value="69" /><property name="sim_time_unit" value="ns" /><property name="sim_time_start" value="0.0" /><property name="sim_time_stop" value="1606900.0" /><property name="sim_time_duration" value="1606900.0" /><property name="sim_time_ratio" value="885099.7232449909" /></properties><system-err>Test failed with COCOTB_RANDOM_SEED=1794310428
 </system-err></testcase></testsuite></testsuites>
