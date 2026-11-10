@@ -47,7 +47,10 @@ architecture Rtl of chip is
     signal display_update : std_logic := '0';
 
     type I_TYPE is
-    (EMPTY, I_00E0, I_1NNN, I_6XNN, I_7XNN, I_ANNN, I_DXYN);
+    (EMPTY, I_0NNN, I_00E0, I_1NNN, I_6XNN, I_7XNN, I_ANNN, I_DXYN,
+    I_2NNN, I_00EE, I_3XNN, I_4XNN, I_5XY0, I_9XY0, I_8XYN, I_BNNN,
+    I_CXNN, I_EX9E, I_EXA1, I_FX07, I_FX15, I_FX18, I_FX1E, I_FX0A,
+    I_FX29, I_FX33, I_FX55, I_FX66);
     signal instruction : I_TYPE := EMPTY;
     signal subcounter : unsigned(11 downto 0) := (others => '0');
 
@@ -60,10 +63,13 @@ architecture Rtl of chip is
     signal VYS : unsigned(7 downto 0) := (others => '0');
 
     signal drawBufPos : unsigned(10 downto 0);
+    signal drawBufPosEnd : unsigned(10 downto 0);
+    signal drawBufPosY : unsigned(4 downto 0);
+    signal ramDrawSlice : unsigned(2 downto 0) := (others => '0');
 begin
     dispdriver : entity work.dispdriver
         port map(
-            clock => clock,
+            clock => '0',
             update => display_update,
             buf => display_buf,
             dispClk => display_clk,
@@ -95,7 +101,7 @@ begin
         variable VY : unsigned(7 downto 0) := (others => '0');
         variable wVX : std_logic := '0';
         variable wVY : std_logic := '0';
-
+        variable calc : unsigned(15 downto 0) := (others => '0');
     begin
         if (chipEN = '1' and rising_edge(clock)) then
             case instruction is
@@ -126,24 +132,126 @@ begin
                 when I_DXYN =>
                     subcounter <= subcounter + 1; -- rows only go up to 31, so last 5 bytes for addressing
                     ram_address <= std_logic_vector(I(11 downto 0) + subcounter(4 downto 0));
-                    drawBufPos <= (VYS(4 downto 0) + subcounter(4 downto 0) - 1) & VXS(5 downto 0);
+                    drawBufPosY <= VYS(4 downto 0) + subcounter(4 downto 0); -- 1 cycles behind
+                    drawBufPos <= drawBufPosY & VXS(5 downto 0); -- 2 cycles behind = synced to ram output
+
+                    if (VXS(5 downto 0) < 56) then
+                        drawBufPosEnd <= drawBufPosY & (VXS(5 downto 0) + 7);
+                        ramDrawSlice <= (others => '0');
+                    else
+                        drawBufPosEnd <= drawBufPosY & to_unsigned(63, 6);
+                        ramDrawSlice <= VXS(2 downto 0) - to_unsigned(56, 3);
+                    end if;
 
                     if (to_integer(subcounter) = 0) then
+                        --terminate immeadiatly to not wait for ram and write first line
+                        if (N = 0) then
+                            subcounter <= (others => '0');
+                            instruction <= EMPTY;
+                        end if;
                         ram_we <= '0';
-                        VF <= (others => '0');
+                        VF <= to_unsigned(0, 8);
                     elsif (to_integer(subcounter) = 1) then
                         --empty pulse waiting for RAM to output first byte
                     else
-                        display_buf(to_integer(drawBufPos) to to_integer(drawBufPos) + 7) <= ram_din xor display_buf(to_integer(drawBufPos) to to_integer(drawBufPos) + 7);
-                        if not "00000000" = (ram_din and display_buf(to_integer(drawBufPos) to to_integer(drawBufPos) + 7)) then
-                            report "collision";
+                        --ram value in cycle 2 from address in cycle 0
+                        display_buf(to_integer(drawBufPos) to to_integer(drawBufPosEnd)) <= ram_din(7 downto to_integer(ramDrawSlice)) xor display_buf(to_integer(drawBufPos) to to_integer(drawBufPosEnd));
+                        --report integer'image(to_integer(unsigned((ram_din(7 downto to_integer(ramDrawSlice)) and display_buf(to_integer(drawBufPos) to to_integer(drawBufPosEnd))))));
+
+                        if not (0 = unsigned(ram_din(7 downto to_integer(ramDrawSlice)) and display_buf(to_integer(drawBufPos) to to_integer(drawBufPosEnd)))) then
+                            --report "collision";
+                            VF <= to_unsigned(1, 8);
                         end if;
+                        -- end if reached N, or would roll back to 0 next cycle <=> drawing in first line without VY being 0 ( cant roll over for VY <= 16 since N <= 15)
+                        if (to_integer(subcounter) > N or (drawBufPosY = 0 and VYS(4) = '1')) then
+                            subcounter <= (others => '0');
+                            instruction <= EMPTY;
+                            display_update <= '1';
+                        end if;
+
                     end if;
-                    if (to_integer(subcounter) > N) then
-                        subcounter <= (others => '0');
-                        instruction <= EMPTY;
-                        display_update <= '1';
+
+                when I_0NNN => -- unsupported
+                    report "machine code instruction";
+                    err(2) <= '1';
+                    instruction <= EMPTY;
+
+                when I_3XNN => -- conditional jumps
+                    instruction <= EMPTY;
+                    if (VXS = NN) then
+                        PC <= PC + 2;
                     end if;
+                when I_4XNN =>
+                    instruction <= EMPTY;
+                    if not (VXS = NN) then
+                        PC <= PC + 2;
+                    end if;
+                when I_5XY0 =>
+                    instruction <= EMPTY;
+                    if (VXS = VYS) then
+                        PC <= PC + 2;
+                    end if;
+                when I_9XY0 =>
+                    instruction <= EMPTY;
+                    if not (VXS = VYS) then
+                        PC <= PC + 2;
+                    end if;
+
+                when I_8XYN => -- arithmetic
+                    instruction <= EMPTY;
+                    wVX := '1';
+                    case N is
+                        when x"0" =>
+                            VX := VYS;
+                        when x"1" =>
+                            VX := VXS or VYS;
+                        when x"2" =>
+                            VX := VXS and VYS;
+                        when x"3" =>
+                            VX := VXS xor VYS;
+
+                        when x"4" => -- X+Y
+                            calc(8 downto 0) := ('0' & VXS) + ('0' & VYS);
+                            VX := calc(7 downto 0);
+                            VF <= (others => '0');
+                            VF(0) <= calc(8);
+                        when x"5" => -- X-Y
+                            calc(8 downto 0) := ('1' & VXS) - ('0' & VYS);
+                            VX := calc(7 downto 0);
+                            VF <= (others => '0');
+                            VF(0) <= calc(8);
+                        when x"7" => -- Y-X
+                            calc(8 downto 0) := ('1' & VYS) - ('0' & VXS);
+                            VX := calc(7 downto 0);
+                            VF <= (others => '0');
+                            VF(0) <= calc(8);
+
+                        when x"6" => -- shift VX down
+                            calc(8 downto 0) := '0' & VXS;
+                            VX := calc(8 downto 1);
+                            VF <= (others => '0');
+                            VF(0) <= calc(0);
+                        when x"E" => -- shift VX up
+                            calc(8 downto 0) := VXS & '0';
+                            VX := calc(7 downto 0);
+                            VF <= (others => '0');
+                            VF(0) <= calc(8);
+
+                        when others =>
+                            err(1) <= '1';
+                            VX := VXS;
+                    end case;
+
+                when I_BNNN =>
+                    -- possibly jump to VX+XNN instead
+                    calc := V0 + NNN;
+                    I <= calc;
+                    instruction <= EMPTY;
+
+                when I_CXNN =>
+                    wVX := '1';
+                    VX := (others => '0'); -- TODO: actual randoom implementation !!!!
+                    instruction <= EMPTY;
 
                 when EMPTY =>
                     subcounter <= subcounter + 1;
@@ -173,6 +281,9 @@ begin
 
                             if ibytes = x"00E0" then
                                 instruction <= I_00E0;
+                            elsif Q = x"0" then
+                                instruction <= I_0NNN;
+
                             elsif Q = x"1" then
                                 instruction <= I_1NNN;
                             elsif Q = x"6" then
@@ -183,11 +294,64 @@ begin
                                 instruction <= I_ANNN;
                             elsif Q = x"D" then
                                 instruction <= I_DXYN;
+
+                            elsif Q = x"2" then
+                                instruction <= I_2NNN;
+                            elsif ibytes = x"00EE" then
+                                instruction <= I_00EE;
+
+                            elsif Q = x"3" then
+                                instruction <= I_3XNN;
+                            elsif Q = x"4" then
+                                instruction <= I_4XNN;
+                            elsif Q = x"5" and N = x"0" then
+                                instruction <= I_5XY0;
+                            elsif Q = x"9" and N = x"0" then
+                                instruction <= I_9XY0;
+
+                            elsif Q = x"8" then
+                                instruction <= I_8XYN;
+
+                            elsif Q = x"B" then
+                                instruction <= I_BNNN;
+
+                            elsif Q = x"C" then
+                                instruction <= I_CXNN;
+
+                            elsif Q = x"E" and NN = x"9E" then
+                                instruction <= I_EX9E;
+                            elsif Q = x"E" and NN = x"A1" then
+                                instruction <= I_EXA1;
+
+                            elsif Q = x"F" and NN = x"07" then
+                                instruction <= I_FX07;
+                            elsif Q = x"F" and NN = x"15" then
+                                instruction <= I_FX15;
+                            elsif Q = x"F" and NN = x"18" then
+                                instruction <= I_FX15;
+
+                            elsif Q = x"F" and NN = x"1E" then
+                                instruction <= I_FX07;
+                            elsif Q = x"F" and NN = x"0A" then
+                                instruction <= I_FX0A;
+                            elsif Q = x"F" and NN = x"29" then
+                                instruction <= I_FX29;
+                            elsif Q = x"F" and NN = x"33" then
+                                instruction <= I_FX33;
+                            elsif Q = x"F" and NN = x"55" then
+                                instruction <= I_FX55;
+                            elsif Q = x"F" and NN = x"66" then
+                                instruction <= I_FX66;
+
+                            else
+                                report "undefined instruction";
+                                err(1) <= '1'; --execution of a wrong or undefined instruction
                             end if;
                         when others => null;
                     end case; --subcase
                 when others =>
-                    err(3) <= '1';
+                    report "instruction not defined";
+                    err(2) <= '1'; -- instruction not implemented
                     instruction <= EMPTY;
             end case; -- instruction case
 

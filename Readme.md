@@ -6,6 +6,12 @@ This is a project made for hackclub [chipper](https://chipper.hackclub.com/), de
 
 The interface portion of the language is implemented using cocotb in python. This handles loading the program data into a RAM component and letting the user interact with the simulated circuit with a gui.
 
+Things I've used a lot in making this:
+
+- [Instruction reference](https://tobiasvl.github.io/blog/write-a-chip-8-emulator/) as reference.
+- [German vhdl intro](https://www.uni-ulm.de/fileadmin/website_uni_ulm/iui.inst.050/vorlesungen/sose08/LaborpraktikumEingebetteteSysteme/Material/Crashkurs_)
+- No AI was used for writing any of the code/documentation.
+
 ## Component ports
 
 These are the connections which the Simulated chip uses to interact with external components:
@@ -23,6 +29,23 @@ These are the connections which the Simulated chip uses to interact with externa
 - also implements an error signal `err`, used for debugging if an undefined instruction or a stack overflow occurs
 
 ## Status
+
+### Arithmetic instructions & others
+
+Described (see `design/instructions.mb`) all and implemented multiple remaining instructions.
+Still missing instructions are:
+
+- `E...` reading key press
+- `F...`
+    - waiting for key
+    - timers ( still have to be implemented in hardware)
+    - font addressing
+    - BCD
+    - memory store/load
+- `CNNN` random value, possible seperate module implementation
+
+Result of opcode test program:
+![opcode test program](assets/testcode.png)
 
 ### Implemented DXYN
 

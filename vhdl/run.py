@@ -1,6 +1,7 @@
 import cocotb
 from cocotb.triggers import *
 from cocotb.handle import *
+from cocotb.clock import Clock
 import random
 
 async def pulseH(pin, dur):
@@ -34,7 +35,7 @@ canv.pack()
 
 
 fontData = bytearray([
-    0xF0, 0x90, 0x90, 0x90, 0xF0, 
+    0xF0, 0x90, 0x90, 0x90, 0xF0,  #0
     0x20, 0x60, 0x20, 0x20, 0x70, 
     0xF0, 0x10, 0xF0, 0x80, 0xF0, 
     0xF0, 0x10, 0xF0, 0x10, 0xF0, 
@@ -49,19 +50,19 @@ fontData = bytearray([
     0xF0, 0x80, 0x80, 0x80, 0xF0, 
     0xE0, 0x90, 0x90, 0x90, 0xE0, 
     0xF0, 0x80, 0xF0, 0x80, 0xF0,
-    0xF0, 0x80, 0xF0, 0x80, 0x80 
+    0xF0, 0x80, 0xF0, 0x80, 0x80   #F
 ])
 fontAddress = 0x50
 
 
-progFile = "../programs/ibm.ch8"
+progFile = "../programs/test_opcode.ch8"
 progData = None
 with open(progFile, "rb") as f:
     progData = bytearray(f.read())  
 progAddress = 0x200
 
 clockSimHz = 1e5
-realClockHz = 100
+realClockHz = 500
 
 def reg(i):
     return "V"+hex(i)[2::]
@@ -75,6 +76,10 @@ async def run(main):
     #callbacks
     cocotb.start_soon(displayUpdate(chip))
     cocotb.start_soon(monitor(main))
+
+    #faster clock for display
+    dclock = Clock(chip.dispdriver.clock, 10, units="ns")
+    cocotb.start_soon(dclock.start())
 
     main.clockMain.value = 0
 
@@ -128,12 +133,12 @@ async def displayUpdate(dut):
     while True:
         await RisingEdge(dut.display_clk)
         signal = dut.display_dout.value
-        cocotb.log.info(f"Display Signal: {signal}")
+        #cocotb.log.info(f"Display Signal: {signal}")
         val = list(signal[15:8]) #VVVVVVVVPPPPPPPP
         pos = int(signal[7:0])
         posX = (pos*8) % 64
         posY = (pos*8) // 64
-        cocotb.log.info(f"{signal[15:8]} {posX} {posY}")
+        #cocotb.log.info(f"{signal[15:8]} {posX} {posY}")
 
         for o in range(8):
             target = displayGrid[posX+o][posY]
