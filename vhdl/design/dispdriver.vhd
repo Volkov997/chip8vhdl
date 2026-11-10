@@ -15,6 +15,7 @@ end entity dispdriver;
 architecture Rtl of dispdriver is
     signal writing : std_logic := '0';
     signal counter : unsigned(7 downto 0) := (others => '0');
+    signal schedule : std_logic := '0';
 begin
 
     with writing select
@@ -26,13 +27,19 @@ begin
     begin
         if (rising_edge(update)) then
             writing <= '1';
-            counter <= (others => '0');
+            if not (counter = 0) then
+                schedule <= '1';
+            end if;
         end if;
         if (rising_edge(clock)) then
             if (counter = 255) then
                 writing <= '0';
-            end if;
-            if writing = '1' then
+                counter <= (others => '0');
+                if (schedule = '1') then
+                    writing <= '1';
+                    schedule <= '0';
+                end if;
+            elsif writing = '1' then
                 counter <= counter + 1;
             end if;
         end if;

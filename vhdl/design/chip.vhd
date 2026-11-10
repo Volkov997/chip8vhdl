@@ -58,6 +58,8 @@ architecture Rtl of chip is
     signal YSel : unsigned(3 downto 0) := (others => '0');
     signal VXS : unsigned(7 downto 0) := (others => '0');
     signal VYS : unsigned(7 downto 0) := (others => '0');
+
+    signal drawBufPos : unsigned(10 downto 0);
 begin
     dispdriver : entity work.dispdriver
         port map(
@@ -94,8 +96,6 @@ begin
         variable wVX : std_logic := '0';
         variable wVY : std_logic := '0';
 
-        variable drawBufPos : unsigned(10 downto 0);
-
     begin
         if (chipEN = '1' and rising_edge(clock)) then
             case instruction is
@@ -126,6 +126,7 @@ begin
                 when I_DXYN =>
                     subcounter <= subcounter + 1; -- rows only go up to 31, so last 5 bytes for addressing
                     ram_address <= std_logic_vector(I(11 downto 0) + subcounter(4 downto 0));
+                    drawBufPos <= (VYS(4 downto 0) + subcounter(4 downto 0) - 1) & VXS(5 downto 0);
 
                     if (to_integer(subcounter) = 0) then
                         ram_we <= '0';
@@ -133,7 +134,6 @@ begin
                     elsif (to_integer(subcounter) = 1) then
                         --empty pulse waiting for RAM to output first byte
                     else
-                        drawBufPos := (VY(4 downto 0) + subcounter(4 downto 0)) & VX(5 downto 0);
                         display_buf(to_integer(drawBufPos) to to_integer(drawBufPos) + 7) <= ram_din xor display_buf(to_integer(drawBufPos) to to_integer(drawBufPos) + 7);
                         if not "00000000" = (ram_din and display_buf(to_integer(drawBufPos) to to_integer(drawBufPos) + 7)) then
                             report "collision";
