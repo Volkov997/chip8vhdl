@@ -106,6 +106,7 @@ VX = random between 0 and FF, & with NN
 ### `EX9E` +
 
 skip inst if key (0-F) VX pressed
+uses lowest 4 bits of VX only
 
 ### `EXA1` +
 
@@ -119,13 +120,13 @@ set VX to delay timer
 
 set delay/sound timer to VX
 
-### `FX1E`
+### `FX1E` +
 
 add VX to I
 
 Y(VF set to 1 iff I > 0FFF)
 
-### `FX0A`
+### `FX0A` +
 
 wait until key pressed, then store value to VX
 

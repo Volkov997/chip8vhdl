@@ -23,15 +23,17 @@ begin
         '0' when others;
     data <= buf(8 * to_integer(counter) to 8 * to_integer(counter) + 7) & std_logic_vector(counter);
 
-    process (clock, update)
+    process (clock)
     begin
-        if (rising_edge(update)) then
-            writing <= '1';
-            if not (counter = 0) then
-                schedule <= '1';
-            end if;
-        end if;
         if (rising_edge(clock)) then
+
+            if (update = '1') then
+                writing <= '1';
+                if not (counter = 0) then
+                    schedule <= '1';
+                end if;
+            end if;
+
             if (counter = 255) then
                 writing <= '0';
                 counter <= (others => '0');

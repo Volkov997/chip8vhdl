@@ -4,7 +4,7 @@ use IEEE.Numeric_Std.all;
 
 entity chip is
     generic (
-        CLOCK_DIV : integer := 50 -- up to 65.535kHz, clock div for 1 sec timer
+        CLOCK_DIV : integer := 1024 -- up to 65.535kHz, clock div for 1 sec timer
     );
     port (
         clock : in std_logic;
@@ -15,7 +15,7 @@ entity chip is
         display_dout : out std_logic_vector (15 downto 0); -- 1 byte of values, 1 byte position
         display_clk : out std_logic := '0'; -- display write signal
         beep : out std_logic := '0';
-        keypad : in std_logic_vector (15 downto 0);
+        keypad : in std_logic_vector (15 downto 0) := (others => '0');
         chipEN : in std_logic := '1';
         err : out std_logic_vector(3 downto 0) := (others => '0')
     );
@@ -61,8 +61,8 @@ architecture Rtl of chip is
 
     signal XSel : unsigned(3 downto 0) := (others => '0');
     signal YSel : unsigned(3 downto 0) := (others => '0');
-    signal VXS : unsigned(7 downto 0) := (others => '0');
-    signal VYS : unsigned(7 downto 0) := (others => '0');
+    signal VXr : unsigned(7 downto 0) := (others => '0');
+    signal VYr : unsigned(7 downto 0) := (others => '0');
 
     signal drawBufPos : unsigned(10 downto 0);
     signal drawBufPosEnd : unsigned(10 downto 0);
@@ -70,6 +70,7 @@ architecture Rtl of chip is
     signal ramDrawSlice : unsigned(2 downto 0) := (others => '0');
 
     signal clockCount : unsigned(15 downto 0) := (others => '0');
+    signal firstKey : unsigned(3 downto 0) := (others => '0');
 begin
     dispdriver : entity work.dispdriver
         port map(
@@ -82,17 +83,41 @@ begin
 
     --read from VX/VY
     with to_integer(XSel) select
-    VXS <= V0 when 0, V1 when 1, V2 when 2, V3 when 3,
+    VXr <= V0 when 0, V1 when 1, V2 when 2, V3 when 3,
            V4 when 4, V5 when 5, V6 when 6, V7 when 7,
            V8 when 8, V9 when 9, VA when 10, VB when 11,
            VC when 12, VD when 13, VE when 14, VF when others;
     with to_integer(YSel) select
-    VYS <= V0 when 0, V1 when 1, V2 when 2, V3 when 3,
+    VYr <= V0 when 0, V1 when 1, V2 when 2, V3 when 3,
            V4 when 4, V5 when 5, V6 when 6, V7 when 7,
            V8 when 8, V9 when 9, VA when 10, VB when 11,
            VC when 12, VD when 13, VE when 14, VF when others;
 
-    Exec : process (clock, chipEN) is
+    with timer2 select
+        beep <= '0' when x"00",
+        '1' when others;
+
+    -- first pressed key
+    firstKey <= x"0" when keypad(0) = '1' else
+                x"1" when keypad(1) = '1' else
+                x"2" when keypad(2) = '1' else
+                x"3" when keypad(3) = '1' else
+                x"4" when keypad(4) = '1' else
+                x"5" when keypad(5) = '1' else
+                x"6" when keypad(6) = '1' else
+                x"7" when keypad(7) = '1' else
+                x"8" when keypad(8) = '1' else
+                x"9" when keypad(9) = '1' else
+                x"a" when keypad(10) = '1' else
+                x"b" when keypad(11) = '1' else
+                x"c" when keypad(12) = '1' else
+                x"d" when keypad(13) = '1' else
+                x"e" when keypad(14) = '1' else
+                x"f"; --also default case if all 0
+
+    -- clocked process
+
+    Exec : process (clock) is
         variable Q : unsigned(3 downto 0) := (others => '0');
         variable X : unsigned(3 downto 0) := (others => '0');
         variable Y : unsigned(3 downto 0) := (others => '0');
@@ -116,10 +141,8 @@ begin
                     timer1 <= timer1 - 1;
                 end if;
                 if not (timer2 = 0) then
-                    beep <= '1';
                     timer2 <= timer2 - 1;
                 else
-                    beep <= '0';
                 end if;
             end if;
 
@@ -142,7 +165,7 @@ begin
 
                 when I_7XNN => -- increment VX by NN
                     wVX := '1';
-                    VX := VXS + NN;
+                    VX := VXr + NN;
                     instruction <= EMPTY;
 
                 when I_ANNN =>
@@ -152,15 +175,15 @@ begin
                 when I_DXYN =>
                     subcounter <= subcounter + 1; -- rows only go up to 31, so last 5 bytes for addressing
                     ram_address <= std_logic_vector(I(11 downto 0) + subcounter(4 downto 0));
-                    drawBufPosY <= VYS(4 downto 0) + subcounter(4 downto 0); -- 1 cycles behind
-                    drawBufPos <= drawBufPosY & VXS(5 downto 0); -- 2 cycles behind = synced to ram output
+                    drawBufPosY <= VYr(4 downto 0) + subcounter(4 downto 0); -- 1 cycles behind
+                    drawBufPos <= drawBufPosY & VXr(5 downto 0); -- 2 cycles behind = synced to ram output
 
-                    if (VXS(5 downto 0) < 56) then
-                        drawBufPosEnd <= drawBufPosY & (VXS(5 downto 0) + 7);
+                    if (VXr(5 downto 0) < 56) then
+                        drawBufPosEnd <= drawBufPosY & (VXr(5 downto 0) + 7);
                         ramDrawSlice <= (others => '0');
                     else
                         drawBufPosEnd <= drawBufPosY & to_unsigned(63, 6);
-                        ramDrawSlice <= VXS(2 downto 0) - to_unsigned(56, 3);
+                        ramDrawSlice <= VXr(2 downto 0) - to_unsigned(56, 3);
                     end if;
 
                     if (to_integer(subcounter) = 0) then
@@ -183,10 +206,10 @@ begin
                             VF <= to_unsigned(1, 8);
                         end if;
                         -- end if reached N, or would roll back to 0 next cycle <=> drawing in first line without VY being 0 ( cant roll over for VY <= 16 since N <= 15)
-                        if (to_integer(subcounter) > N or (drawBufPosY = 0 and VYS(4) = '1')) then
+                        if (to_integer(subcounter) > N or (drawBufPosY = 0 and VYr(4) = '1')) then
                             subcounter <= (others => '0');
                             instruction <= EMPTY;
-                            display_update <= '1';
+                            display_update <= '1'; -- update at end to prevent tearing
                         end if;
 
                     end if;
@@ -198,22 +221,22 @@ begin
 
                 when I_3XNN => -- conditional jumps
                     instruction <= EMPTY;
-                    if (VXS = NN) then
+                    if (VXr = NN) then
                         PC <= PC + 2;
                     end if;
                 when I_4XNN =>
                     instruction <= EMPTY;
-                    if not (VXS = NN) then
+                    if not (VXr = NN) then
                         PC <= PC + 2;
                     end if;
                 when I_5XY0 =>
                     instruction <= EMPTY;
-                    if (VXS = VYS) then
+                    if (VXr = VYr) then
                         PC <= PC + 2;
                     end if;
                 when I_9XY0 =>
                     instruction <= EMPTY;
-                    if not (VXS = VYS) then
+                    if not (VXr = VYr) then
                         PC <= PC + 2;
                     end if;
 
@@ -222,44 +245,44 @@ begin
                     wVX := '1';
                     case N is
                         when x"0" =>
-                            VX := VYS;
+                            VX := VYr;
                         when x"1" =>
-                            VX := VXS or VYS;
+                            VX := VXr or VYr;
                         when x"2" =>
-                            VX := VXS and VYS;
+                            VX := VXr and VYr;
                         when x"3" =>
-                            VX := VXS xor VYS;
+                            VX := VXr xor VYr;
 
                         when x"4" => -- X+Y
-                            calc(8 downto 0) := ('0' & VXS) + ('0' & VYS);
+                            calc(8 downto 0) := ('0' & VXr) + ('0' & VYr);
                             VX := calc(7 downto 0);
                             VF <= (others => '0');
                             VF(0) <= calc(8);
                         when x"5" => -- X-Y
-                            calc(8 downto 0) := ('1' & VXS) - ('0' & VYS);
+                            calc(8 downto 0) := ('1' & VXr) - ('0' & VYr);
                             VX := calc(7 downto 0);
                             VF <= (others => '0');
                             VF(0) <= calc(8);
                         when x"7" => -- Y-X
-                            calc(8 downto 0) := ('1' & VYS) - ('0' & VXS);
+                            calc(8 downto 0) := ('1' & VYr) - ('0' & VXr);
                             VX := calc(7 downto 0);
                             VF <= (others => '0');
                             VF(0) <= calc(8);
 
                         when x"6" => -- shift VX down
-                            calc(8 downto 0) := '0' & VXS;
+                            calc(8 downto 0) := '0' & VXr;
                             VX := calc(8 downto 1);
                             VF <= (others => '0');
                             VF(0) <= calc(0);
                         when x"E" => -- shift VX up
-                            calc(8 downto 0) := VXS & '0';
+                            calc(8 downto 0) := VXr & '0';
                             VX := calc(7 downto 0);
                             VF <= (others => '0');
                             VF(0) <= calc(8);
 
                         when others =>
                             err(1) <= '1';
-                            VX := VXS;
+                            VX := VXr;
                     end case;
 
                 when I_BNNN =>
@@ -275,13 +298,24 @@ begin
 
                 when I_EX9E => -- skip if key 0-F in keypad pressed
                     instruction <= EMPTY;
-                    if (keypad(to_integer(VX)) = '1') then
+                    if (keypad(to_integer(VXr(3 downto 0))) = '1') then
                         PC <= PC + 2;
                     end if;
                 when I_EXA1 =>
                     instruction <= EMPTY;
-                    if (keypad(to_integer(VX)) = '0') then
+                    if (keypad(to_integer(VXr(3 downto 0))) = '0') then
                         PC <= PC + 2;
+                    end if;
+
+                when I_FX0A => -- wait until key pressed
+                    if (keypad = x"0000") then
+                        instruction <= I_FX0A; -- loop if not
+                    else
+                        wVX := '1';
+                        instruction <= EMPTY;
+                        -- first pressed key in one instruction
+                        VX(7 downto 4) := x"0";
+                        VX(3 downto 0) := firstKey;
                     end if;
 
                 when I_FX07 => -- set VX to delay timer
@@ -291,10 +325,19 @@ begin
 
                 when I_FX15 => -- set delay timer to VX
                     instruction <= EMPTY;
-                    timer1 <= VXS;
+                    timer1 <= VXr;
                 when I_FX18 => -- sound timer
                     instruction <= EMPTY;
-                    timer2 <= VXS;
+                    timer2 <= VXr;
+
+                when I_FX1E => -- increment I
+                    calc := I + VXr;
+                    I <= calc;
+                    VF <= (others => '0');
+                    --- overflow , maybe "not (calc(15 to 12) = x"0")"
+                    if calc > x"0FFF" then
+                        VF(0) <= '1';
+                    end if;
 
                 when EMPTY =>
                     subcounter <= subcounter + 1;
@@ -371,7 +414,7 @@ begin
                             elsif Q = x"F" and NN = x"15" then
                                 instruction <= I_FX15;
                             elsif Q = x"F" and NN = x"18" then
-                                instruction <= I_FX15;
+                                instruction <= I_FX18;
 
                             elsif Q = x"F" and NN = x"1E" then
                                 instruction <= I_FX07;

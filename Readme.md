@@ -10,6 +10,7 @@ Things I've used a lot in making this:
 
 - [Instruction reference](https://tobiasvl.github.io/blog/write-a-chip-8-emulator/) as reference.
 - [German vhdl intro](https://www.uni-ulm.de/fileadmin/website_uni_ulm/iui.inst.050/vorlesungen/sose08/LaborpraktikumEingebetteteSysteme/Material/Crashkurs_)
+- [this repo](https://github.com/Timendus/chip8-test-suite/tree/main) with test programs (next to self-written ones)
 - No AI was used for writing any of the code/documentation.
 
 ## Component ports
@@ -29,6 +30,17 @@ These are the connections which the Simulated chip uses to interact with externa
 - also implements an error signal `err`, used for debugging if an undefined instruction or a stack overflow occurs
 
 ## Status Logs
+
+### The Keypad and instructions `EX9E`/`EXA1`/`FX0A`
+
+Added a keypad to the interface ( also accessible through the keyboard using keys 1-4,q-r,a-f and y-v ), and wrote programs to test the skip and wait functionality respectively.
+Also added a beeper output ( visual only cause beeps are annoying )
+
+`keypad.ch8` will activate the beep for 5s ( circle turns red ) when key 3 is pressed.
+
+`keywait.ch8` will draw a square on the screen as long as a key is pressed, storing the number in V7.
+
+<img src="assets/keypadtimer.png" style="width:50%">
 
 ### Timers
 
@@ -53,45 +65,55 @@ Still missing instructions are:
 - `CNNN` random value, possible seperate module implementation
 
 Result of opcode test program:
-![opcode test program](assets/testcode.png)
+
+<img src="assets/testcode.png" style="width:50%">
 
 ### Implemented DXYN
 
 The Drawing instruction now works!
 Simple sprite test ( sprite 3C7E7E3C at 2,2):
-![small orb sprite](assets/sprite.png)
+
+<img src="assets/sprite.png" style="width:50%">
 
 With this, the current instructions suffice to run the IBM test program:
-![IBM test program with bugged instruction](assets/ibmwrong.png)
+
+<img src="assets/ibmwrong.png" style="width:50%">
+
 Its displayed in the wrong position due to some incorrect calculation of the offset, but the logo itself is visible.
 Corrected version:
-![IBM test program](assets/ibm.png)
+
+<img src="assets/ibm.png" style="width:50%">
 
 ### Updated and seperate display driver
 
 This version now implements a 2048 bit display buffer, and a seperate clocked display driver which refreshes 8 pixels per clock cycle. Screen clearing is now a lot faster and doesnt block other instructions.
 
 Test display clear also writes the bytes 0xAABBCCDD in the middle of the display, to test the buffer working properly.
-![display clearing process](assets/dispFast.png)
+
+<img src="assets/dispFast.png" style="width:50%">
 
 ### Implemented instructions 1NNN, 6XNN and 7XNN
 
 debug of a simple program consisting of these 3 instructions ( see top left ) setting V4 to E0 and counting up by 1:
-![simple counter program](assets/simple.png)
+
+<img src="assets/simple.png" style="width:50%">
 
 ### Running 00E0
 
 Running a program consisting of just the single instruction `00E0`, clearing the screen ( takes 2047 clock cycles)
-![display cleared roughly 2/3rds of the way](assets/clearing.png)
+
+<img src="assets/clearing.png" style="width:50%">
 
 ### Parsing opcodes from RAM
 
 Reading the two byte opcode `00E0` into a register over 4 clock cycles
-![output of the instruction debug](assets/opcode.png)
+
+<img src="assets/opcode.png" style="width:50%">
 
 ### Working test interface
 
 Interface harness can load and dump the connected RAM, aswell as recieve a rudimentary display signal from the simulation. Currently the chip just outputs a test signal, writing white pixels into diagonal lines.
 
 ( Image after 610 clock cycles, pixels are displayed in color just to look fancy :p )
-![image of diagonal lines on a display initerface](assets/disptest.png)
+
+<img src="assets/disptest.png" style="width:50%">
