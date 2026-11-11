@@ -55,14 +55,14 @@ fontData = bytearray([
 fontAddress = 0x50
 
 
-progFile = "../programs/test_opcode.ch8"
+progFile = "../programs/timer.ch8"
 progData = None
 with open(progFile, "rb") as f:
     progData = bytearray(f.read())  
 progAddress = 0x200
 
-clockSimHz = 1e5
-realClockHz = 500
+clockSimHz = 1e4
+realClockHz = 50
 
 def reg(i):
     return "V"+hex(i)[2::]
@@ -94,7 +94,7 @@ async def run(main):
 
     chip.chipEN.value = 1
 
-    await dump_ram(ram,80,0x1F0)
+    await dump_ram(ram,80,0x200)
 
     lastClock = 0
     clockVal = 1
@@ -104,12 +104,12 @@ async def run(main):
     while True:
         interface.update()
         if (time.time() - lastClock > 1/realClockHz/2):
+            lastClock = time.time()
             #sync chip time with real time
-            await Timer(1000/clockSimHz/2, unit='ms')
             clockVal = 1-clockVal
             main.clockMain.value = clockVal
-
-            lastClock = time.time()
+            await Timer(1000/clockSimHz/2, unit='ms')
+       
             if (clockVal == 1):
                 cocotb.log.info("RE "+str(cycles))
                 cycles +=1
@@ -120,7 +120,7 @@ async def run(main):
                 cocotb.log.info(f"PC @ {chip.pc.value}, raw instruction {chip.ibytes_sig.value}")
                 cocotb.log.info(f"{main.Sram_address.value} => ram => {ram.dataout.value}")
                 cocotb.log.info(" ".join([ f"{reg(i)}: {hex(chip[reg(i)].value)[2::]}," for i in range(16)]))
-                #cocotb.log.info(chip.display_buf)
+                
     pass
 
 async def monitor(dut):

@@ -3,6 +3,9 @@ use IEEE.STD_LOGIC_1164.all;
 use IEEE.Numeric_Std.all;
 
 entity chip is
+    generic (
+        CLOCK_DIV : integer := 50 -- up to 65.535kHz, clock div for 1 sec timer
+    );
     port (
         clock : in std_logic;
         ram_we : out std_logic := '0';
@@ -15,7 +18,6 @@ entity chip is
         keypad : in std_logic_vector (15 downto 0);
         chipEN : in std_logic := '1';
         err : out std_logic_vector(3 downto 0) := (others => '0')
-
     );
 end entity chip;
 
@@ -66,6 +68,8 @@ architecture Rtl of chip is
     signal drawBufPosEnd : unsigned(10 downto 0);
     signal drawBufPosY : unsigned(4 downto 0);
     signal ramDrawSlice : unsigned(2 downto 0) := (others => '0');
+
+    signal clockCount : unsigned(15 downto 0) := (others => '0');
 begin
     dispdriver : entity work.dispdriver
         port map(
@@ -104,6 +108,22 @@ begin
         variable calc : unsigned(15 downto 0) := (others => '0');
     begin
         if (chipEN = '1' and rising_edge(clock)) then
+            -- update timers
+            clockCount <= clockCount + 1;
+            if clockCount >= CLOCK_DIV then
+                clockCount <= (others => '0');
+                if not (timer1 = 0) then
+                    timer1 <= timer1 - 1;
+                end if;
+                if not (timer2 = 0) then
+                    beep <= '1';
+                    timer2 <= timer2 - 1;
+                else
+                    beep <= '0';
+                end if;
+            end if;
+
+            -- fetch/execute
             case instruction is
 
                 when I_00E0 => -- clear screen
@@ -116,13 +136,13 @@ begin
                     instruction <= EMPTY;
 
                 when I_6XNN => -- set VX to NN
-                    VX := NN;
                     wVX := '1';
+                    VX := NN;
                     instruction <= EMPTY;
 
                 when I_7XNN => -- increment VX by NN
-                    VX := VXS + NN;
                     wVX := '1';
+                    VX := VXS + NN;
                     instruction <= EMPTY;
 
                 when I_ANNN =>
@@ -253,6 +273,29 @@ begin
                     VX := (others => '0'); -- TODO: actual randoom implementation !!!!
                     instruction <= EMPTY;
 
+                when I_EX9E => -- skip if key 0-F in keypad pressed
+                    instruction <= EMPTY;
+                    if (keypad(to_integer(VX)) = '1') then
+                        PC <= PC + 2;
+                    end if;
+                when I_EXA1 =>
+                    instruction <= EMPTY;
+                    if (keypad(to_integer(VX)) = '0') then
+                        PC <= PC + 2;
+                    end if;
+
+                when I_FX07 => -- set VX to delay timer
+                    instruction <= EMPTY;
+                    wVX := '1';
+                    VX := timer1;
+
+                when I_FX15 => -- set delay timer to VX
+                    instruction <= EMPTY;
+                    timer1 <= VXS;
+                when I_FX18 => -- sound timer
+                    instruction <= EMPTY;
+                    timer2 <= VXS;
+
                 when EMPTY =>
                     subcounter <= subcounter + 1;
 
@@ -355,6 +398,8 @@ begin
                     instruction <= EMPTY;
             end case; -- instruction case
 
+            -- post execute signal changes
+
             ibytes_sig <= ibytes;
 
             if (wVX = '1') then
@@ -403,9 +448,10 @@ begin
             XSel <= X;
             YSel <= Y;
 
-            if display_update = '1' then
+            if display_update = '1' then -- update should get single clock pulse
                 display_update <= '0';
             end if;
+
         end if;
     end process Exec;
 end architecture Rtl;

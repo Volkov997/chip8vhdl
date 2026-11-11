@@ -42,58 +42,58 @@ jump to NNN
 
 pop PC off stack & jump back
 
-### `3XNN`
+### `3XNN` +
 
 skip next inst when VX = NN
 
-### `4XNN`
+### `4XNN` +
 
 skip next inst when VX != NN
 
-### `5XY0`
+### `5XY0` +
 
 skip next inst when VX = VY
 
-### `9XY0`
+### `9XY0` +
 
 skip next inst when VX != VY
 
-### `8XY0`
+### `8XY0` +
 
 set VX to VY
 
-### `8XY1`
+### `8XY1` +
 
 set VX to VX | VY
 
-### `8XY2`
+### `8XY2` +
 
 set VX to VX & VY
 
-### `8XY3`
+### `8XY3` +
 
 set VX to VX xor VY
 
-### `8XY4`
+### `8XY4` +
 
 set VX to VX + VY, VF = 1 iff overflow
 
-### `8XY5`
+### `8XY5` +
 
 set VX to VX - VY, VF = 0 iff underflow
 
-### `8XY7`
+### `8XY7` +
 
 set VX to VY - VX, VF = 0 iff underflow
 
-### `8XY6`/`8XYE`
+### `8XY6`/`8XYE` +
 
 N(set VX to VY)
 
 shift VX by 1 bit down/up
 VF = shifted out bit
 
-### `BNNN`
+### `BNNN` +
 
 jump to V0+NNN
 
@@ -103,19 +103,19 @@ jump to V0+NNN
 
 VX = random between 0 and FF, & with NN
 
-### `EX9E`
+### `EX9E` +
 
 skip inst if key (0-F) VX pressed
 
-### `EXA1`
+### `EXA1` +
 
 skip inst if key VX is not pressed
 
-### `FX07`
+### `FX07` +
 
 set VX to delay timer
 
-### `FX15`/`FX18`
+### `FX15`/`FX18` +
 
 set delay/sound timer to VX
 
