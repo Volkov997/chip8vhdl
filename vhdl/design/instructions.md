@@ -137,6 +137,7 @@ point I to font character of (left)hex value in VX
 ### `FX33`
 
 store BCD of VX value into I,I+1,I+2
+does not change I
 
 ### `FX55`/`FX65`
 

@@ -2,7 +2,7 @@
 
 ## Summary
 
-This is a project made for hackclub [chipper](https://chipper.hackclub.com/), designing a chip-8 interpreter in VHDL. Since this is my very first time using a HDL, this is not really aimed to be an actual FPGA-ready design ( although i am making it fully synthesizable for simulation ).
+This is a project made for hackclub [chipper](https://chipper.hackclub.com/), designing a chip-8 interpreter in VHDL. Since this is my very first time using a HDL, this is not really aimed to be an actual FPGA-ready design ( although i am trying to make it synthesizable ).
 
 The interface portion of the language is implemented using cocotb in python. This handles loading the program data into a RAM component and letting the user interact with the simulated circuit with a gui.
 
@@ -26,10 +26,18 @@ These are the connections which the Simulated chip uses to interact with externa
 - `beep`
     - output signal to the buzzer
 - `keypad`
-    - 16bit signal with 1bit per key, might change to matrix adressing instead to match a common keypad ( 4 input columns, 4 output rows ) or implement a seperate component to do that
+    - 16 bit signal with 1 bit per key `0`-`F`
 - also implements an error signal `err`, used for debugging if an undefined instruction or a stack overflow occurs
 
 ## Status Logs
+
+### Working stack
+
+The instructions `2NNN` and `00EE` ( subroutine at `NNN` and return) are now implemented!
+
+The stack runs from memory address `0200` (not inclusive) down to `00A0`, allowing for a maximum call depth of 176. The memory area `0050` to `009F` is reserved for font data.
+
+<img src="assets/stack.png" style="width:50%">
 
 ### The Keypad and instructions `EX9E`/`EXA1`/`FX0A`
 
@@ -52,7 +60,7 @@ With this, display instructions dont experience the visible screen tearing from 
 
 ### Arithmetic instructions & others
 
-Described (see `design/instructions.mb`) all and implemented multiple remaining instructions.
+Described (see `design/instructions.mb`) all and implemented multiple remaining instructions. This includes the arithmetic instructions `8...` and some conditional jumps.
 Still missing instructions are:
 
 - `E...` reading key press
@@ -63,6 +71,7 @@ Still missing instructions are:
     - BCD
     - memory store/load
 - `CNNN` random value, possible seperate module implementation
+- `2NNN`/`00EE` stack operations
 
 Result of opcode test program:
 

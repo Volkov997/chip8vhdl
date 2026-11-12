@@ -14,7 +14,7 @@ architecture Rtl of envelope is
     signal Sram_we : std_logic := '0';
 begin
     chipdut : entity work.chip
-        generic map(CLOCK_DIV => 240)
+        generic map(CLOCK_DIV => 80)
         port map(
             clock => clockMain,
             ram_we => Sram_we,

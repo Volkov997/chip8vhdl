@@ -24,7 +24,7 @@ end entity chip;
 architecture Rtl of chip is
     signal PC : unsigned(15 downto 0) := (others => '0');
     signal I : unsigned(15 downto 0) := (others => '0');
-    signal stackP : unsigned(15 downto 0) := X"0200"; -- stack between 09F and 1FF, 176 adresses 
+    signal stackP : unsigned(11 downto 0) := x"200";
     signal timer1 : unsigned(7 downto 0) := (others => '0');
     signal timer2 : unsigned(7 downto 0) := (others => '0');
 
@@ -64,6 +64,8 @@ architecture Rtl of chip is
     signal VXr : unsigned(7 downto 0) := (others => '0');
     signal VYr : unsigned(7 downto 0) := (others => '0');
 
+    signal VX_BCD : unsigned(11 downto 0);
+
     signal drawBufPos : unsigned(10 downto 0);
     signal drawBufPosEnd : unsigned(10 downto 0);
     signal drawBufPosY : unsigned(4 downto 0);
@@ -96,6 +98,14 @@ begin
     with timer2 select
         beep <= '0' when x"00",
         '1' when others;
+
+    -- BCD module
+
+    bcdconv : entity work.bcdconv
+        port map(
+            hx => VXr,
+            BCD => VX_BCD
+        );
 
     -- first pressed key
     firstKey <= x"0" when keypad(0) = '1' else
@@ -150,29 +160,30 @@ begin
             case instruction is
 
                 when I_00E0 => -- clear screen
+                    instruction <= EMPTY;
                     display_buf <= (others => '0');
                     display_update <= '1';
-                    instruction <= EMPTY;
 
                 when I_1NNN => -- jump to NNN
-                    PC(11 downto 0) <= NNN;
                     instruction <= EMPTY;
+                    PC(11 downto 0) <= NNN;
 
                 when I_6XNN => -- set VX to NN
+                    instruction <= EMPTY;
                     wVX := '1';
                     VX := NN;
-                    instruction <= EMPTY;
 
                 when I_7XNN => -- increment VX by NN
+                    instruction <= EMPTY;
                     wVX := '1';
                     VX := VXr + NN;
-                    instruction <= EMPTY;
 
                 when I_ANNN =>
-                    I(11 downto 0) <= NNN;
                     instruction <= EMPTY;
+                    I(11 downto 0) <= NNN;
 
                 when I_DXYN =>
+                    instruction <= I_DXYN;
                     subcounter <= subcounter + 1; -- rows only go up to 31, so last 5 bytes for addressing
                     ram_address <= std_logic_vector(I(11 downto 0) + subcounter(4 downto 0));
                     drawBufPosY <= VYr(4 downto 0) + subcounter(4 downto 0); -- 1 cycles behind
@@ -198,6 +209,7 @@ begin
                         --empty pulse waiting for RAM to output first byte
                     else
                         --ram value in cycle 2 from address in cycle 0
+                        --problematic slice in synthesis
                         display_buf(to_integer(drawBufPos) to to_integer(drawBufPosEnd)) <= ram_din(7 downto to_integer(ramDrawSlice)) xor display_buf(to_integer(drawBufPos) to to_integer(drawBufPosEnd));
                         --report integer'image(to_integer(unsigned((ram_din(7 downto to_integer(ramDrawSlice)) and display_buf(to_integer(drawBufPos) to to_integer(drawBufPosEnd))))));
 
@@ -215,26 +227,77 @@ begin
                     end if;
 
                 when I_0NNN => -- unsupported
-                    report "machine code instruction";
-                    err(2) <= '1';
                     instruction <= EMPTY;
+                    report "machine code instruction";
+                    err(3) <= '1';
 
-                when I_3XNN => -- conditional jumps
+                when I_2NNN => -- subroutine instructions
+                    instruction <= I_2NNN;
+                    subcounter <= subcounter + 1;
+                    case to_integer(subcounter) is
+                        when 0 =>
+                            if (stackP = x"00A0") then
+                                report "stack overflow";
+                                err(0) <= '1';
+                                instruction <= EMPTY;
+                                subcounter <= (others => '0');
+                            else
+                                ram_we <= '1';
+                                ram_address <= std_logic_vector(stackP - 2);
+                                ram_dout <= std_logic_vector(PC(15 downto 8));
+                            end if;
+                        when 1 =>
+                            ram_address <= std_logic_vector(stackP - 1);
+                            ram_dout <= std_logic_vector(PC(7 downto 0));
+                        when others =>
+                            ram_we <= '0';
+                            PC <= x"0" & NNN;
+                            stackP <= stackP - 2;
+                            instruction <= EMPTY;
+                            subcounter <= (others => '0');
+                    end case;
+
+                when I_00EE => -- pop from stack
+                    instruction <= I_00EE;
+                    subcounter <= subcounter + 1;
+                    case to_integer(subcounter) is
+                        when 0 =>
+                            if (stackP = x"200") then
+                                report "nothing on stack";
+                                err(0) <= '1';
+                                instruction <= EMPTY;
+                                subcounter <= (others => '0');
+                            else
+                                ram_we <= '0';
+                                ram_address <= std_logic_vector(stackP);
+                            end if;
+                        when 1 =>
+                            ram_address <= std_logic_vector(stackP + 1);
+                        when 2 =>
+                            PC(15 downto 8) <= unsigned(ram_din);
+                        when others =>
+                            PC(7 downto 0) <= unsigned(ram_din);
+                            stackP <= stackP + 2;
+                            instruction <= EMPTY;
+                            subcounter <= (others => '0');
+                    end case;
+
+                when I_3XNN => -- jump iff ==
                     instruction <= EMPTY;
                     if (VXr = NN) then
                         PC <= PC + 2;
                     end if;
-                when I_4XNN =>
+                when I_4XNN => -- jump iff !=
                     instruction <= EMPTY;
                     if not (VXr = NN) then
                         PC <= PC + 2;
                     end if;
-                when I_5XY0 =>
+                when I_5XY0 => -- iff ==
                     instruction <= EMPTY;
                     if (VXr = VYr) then
                         PC <= PC + 2;
                     end if;
-                when I_9XY0 =>
+                when I_9XY0 => -- iff !=
                     instruction <= EMPTY;
                     if not (VXr = VYr) then
                         PC <= PC + 2;
@@ -286,15 +349,15 @@ begin
                     end case;
 
                 when I_BNNN =>
+                    instruction <= EMPTY;
                     -- possibly jump to VX+XNN instead
                     calc := V0 + NNN;
                     I <= calc;
-                    instruction <= EMPTY;
 
                 when I_CXNN =>
+                    instruction <= EMPTY;
                     wVX := '1';
                     VX := (others => '0'); -- TODO: actual randoom implementation !!!!
-                    instruction <= EMPTY;
 
                 when I_EX9E => -- skip if key 0-F in keypad pressed
                     instruction <= EMPTY;
@@ -331,6 +394,7 @@ begin
                     timer2 <= VXr;
 
                 when I_FX1E => -- increment I
+                    instruction <= EMPTY;
                     calc := I + VXr;
                     I <= calc;
                     VF <= (others => '0');
@@ -339,7 +403,30 @@ begin
                         VF(0) <= '1';
                     end if;
 
+                when I_FX29 => -- get font character of VX 
+                    instruction <= EMPTY;
+                    -- font offset 0x50, char size 5
+                    I <= x"0050" + VXr(3 downto 0) * 5;
+
+                when I_FX33 => -- put BCD of VX into I,I+1,I+2
+                    instruction <= I_FX33;
+                    subcounter <= subcounter + 1;
+
+                    if subcounter = x"3" then
+                        ram_we <= '0';
+                        instruction <= EMPTY;
+                        subcounter <= (others => '0');
+                    else
+                        ram_we <= '1';
+                        ram_dout <= x"0" & std_logic_vector(VX_BCD(11 - 4 * to_integer(subcounter) downto 8 - to_integer(subcounter) * 4));
+                        ram_address <= std_logic_vector(I(11 downto 0) + subcounter);
+                    end if;
+                when I_FX55 =>
+                    instruction <= EMPTY;
+                when I_FX66 =>
+                    instruction <= EMPTY;
                 when EMPTY =>
+                    instruction <= EMPTY;
                     subcounter <= subcounter + 1;
 
                     case to_integer(subcounter) is
@@ -367,6 +454,8 @@ begin
 
                             if ibytes = x"00E0" then
                                 instruction <= I_00E0;
+                            elsif ibytes = x"00EE" then
+                                instruction <= I_00EE;
                             elsif Q = x"0" then
                                 instruction <= I_0NNN;
 
@@ -383,8 +472,6 @@ begin
 
                             elsif Q = x"2" then
                                 instruction <= I_2NNN;
-                            elsif ibytes = x"00EE" then
-                                instruction <= I_00EE;
 
                             elsif Q = x"3" then
                                 instruction <= I_3XNN;

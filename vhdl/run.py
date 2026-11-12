@@ -18,6 +18,7 @@ def interface_on_close():
     interface.destroy()
 
 interface.protocol("WM_DELETE_WINDOW", interface_on_close)
+interface.bind("<Escape>", lambda _: interface_on_close())
 
 
 # canvas
@@ -150,14 +151,14 @@ fontData = bytearray([
 fontAddress = 0x50
 
 
-progFile = "../programs/keywait.ch8"
+progFile = "../programs/test/test_opcode.ch8"
 progData = None
 with open(progFile, "rb") as f:
     progData = bytearray(f.read())  
 progAddress = 0x200
 
 clockSimHz = 1e5
-realClockHz = 240
+realClockHz = 100 #240
 
 def reg(i):
     return "V"+hex(i)[2::]
@@ -223,7 +224,7 @@ async def run(main):
                 cocotb.log.info(f"keypad {chip.keypad.value}, timers D{chip.timer1.value}, S{chip.timer2.value} > {chip.beep.value}")
                 if (chip.err.value != 0):
                     cocotb.log.error(f"chip error signal {chip.err.value}")
-                cocotb.log.info(f"instruction {chip.instruction.value} , substep {chip.subcounter.value}")
+                cocotb.log.info(f"instruction {chip.instruction.value} , substep {chip.subcounter.value}, stack <= {hex(chip.stackP.value)}")
                 cocotb.log.info(f"PC @ {hex(chip.pc.value)}, raw instruction {chip.ibytes_sig.value} = {hex(chip.ibytes_sig.value) + ("?" if chip.instruction.value == 0 else "")}")
                 cocotb.log.info(f"{main.Sram_address.value} => ram => {ram.dataout.value}")
                 cocotb.log.info(" ".join([ f"{reg(i)}: {hex(chip[reg(i)].value)[2::]}," for i in range(16)]))
