@@ -52,7 +52,7 @@ architecture Rtl of chip is
     (EMPTY, I_0NNN, I_00E0, I_1NNN, I_6XNN, I_7XNN, I_ANNN, I_DXYN,
     I_2NNN, I_00EE, I_3XNN, I_4XNN, I_5XY0, I_9XY0, I_8XYN, I_BNNN,
     I_CXNN, I_EX9E, I_EXA1, I_FX07, I_FX15, I_FX18, I_FX1E, I_FX0A,
-    I_FX29, I_FX33, I_FX55, I_FX66);
+    I_FX29, I_FX33, I_FX55, I_FX65);
     signal instruction : I_TYPE := EMPTY;
     signal subcounter : unsigned(11 downto 0) := (others => '0');
 
@@ -422,7 +422,7 @@ begin
                     instruction <= I_FX33;
                     subcounter <= subcounter + 1;
 
-                    if subcounter = x"3" then
+                    if to_integer(subcounter) = 3 then
                         ram_we <= '0';
                         instruction <= EMPTY;
                         subcounter <= (others => '0');
@@ -431,10 +431,54 @@ begin
                         ram_dout <= x"0" & std_logic_vector(VX_BCD(11 - 4 * to_integer(subcounter) downto 8 - to_integer(subcounter) * 4));
                         ram_address <= std_logic_vector(I(11 downto 0) + subcounter);
                     end if;
+
                 when I_FX55 =>
-                    instruction <= EMPTY;
-                when I_FX66 =>
-                    instruction <= EMPTY;
+                    instruction <= I_FX55;
+                    subcounter <= subcounter + 1;
+                    if subcounter = 0 then
+                        Y := ((others => '0'));
+                        calc := I;
+                    elsif subcounter = '0' & X + 2 then
+                        ram_we <= '0';
+                        instruction <= EMPTY;
+                        subcounter <= (others => '0');
+                    else -- write on cycles 1 to X+1
+                        ram_we <= '1';
+                        ram_dout <= std_logic_vector(VYr); -- read from register 0 to X
+                        ram_address <= std_logic_vector(calc(11 downto 0));
+                        Y := Y + 1;
+                        calc := calc + 1;
+                    end if;
+
+                when I_FX65 =>
+
+                    instruction <= I_FX65;
+                    subcounter <= subcounter + 1;
+                    if subcounter = 0 then
+                        ram_we <= '0';
+                        calc := I;
+                    else
+                        calc := calc + 1;
+                        if subcounter = 1 then
+                            -- wait for ram
+                        else
+                            if subcounter = 2 then
+                                Y := (others => '0');
+                            else
+                                Y := Y + 1;
+                            end if;
+
+                            if Y = X then
+                                instruction <= EMPTY;
+                                subcounter <= (others => '0');
+                            end if;
+                            wVY := '1';
+                            VY := unsigned(ram_din); --takes effect thsi cycle
+
+                        end if;
+                    end if;
+                    ram_address <= std_logic_vector(calc(11 downto 0)); --read 2 cycles later
+
                 when EMPTY =>
                     instruction <= EMPTY;
                     subcounter <= subcounter + 1;
@@ -523,8 +567,8 @@ begin
                                 instruction <= I_FX33;
                             elsif Q = x"F" and NN = x"55" then
                                 instruction <= I_FX55;
-                            elsif Q = x"F" and NN = x"66" then
-                                instruction <= I_FX66;
+                            elsif Q = x"F" and NN = x"65" then
+                                instruction <= I_FX65;
 
                             else
                                 report "undefined instruction";

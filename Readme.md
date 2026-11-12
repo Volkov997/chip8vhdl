@@ -4,7 +4,9 @@
 
 This is a project made for hackclub [chipper](https://chipper.hackclub.com/), designing a chip-8 interpreter in VHDL. Since this is my very first time using a HDL, this is not really aimed to be an actual FPGA-ready design ( although i am trying to make it synthesizable ).
 
-The interface portion of the language is implemented using cocotb in python. This handles loading the program data into a RAM component and letting the user interact with the simulated circuit with a gui.
+The interface portion of the language is implemented using a cocotb testbench in python.
+
+This handles loading the program data into a RAM component and letting the user interact with the simulated circuit with a gui.
 
 Things I've used a lot in making this:
 
@@ -29,7 +31,39 @@ These are the connections which the Simulated chip uses to interact with externa
     - 16 bit signal with 1 bit per key `0`-`F`
 - also implements an error signal `err`, used for debugging if an undefined instruction or a stack overflow occurs
 
+## How to run
+
+#### Dependencies
+
+- `ghdl` and `make`
+- `cocotb` python module
+- currently only tested on linux, might work on windows if you get everything installed
+
+### loading the program
+
+Set the parameters ( file name and gui clock speed ) in `run.py` and then execute everything with `make`. This will start the GUI and provide a debug output on each clock pulse.
+
+Currently, the maximum gui simulated clock frequency is ~200Hz, so this is the default. The parameter `CLOCK_DIV` in `envelope.vhd` is used to sync the timers to 1 count per second.
+
+## possible optimizations & improvements ( TODO ? )
+
+Make simulator easier to run ( especially on windows ) and let the user provide arguments instead of modifying the file.
+
+Improve simulated frequency by letting cocotb/ghdl handle most of the clock generation and sync it seperately to 700Hz real-time.
+
+Shorten & clean up code ( possibly using the generate keyword )
+
 ## Status Logs
+
+### All instrucions done !!!
+
+<img src="assets/fulltest.png" style="width:60%">
+
+All instructions have been implemented, and the test program completely passes :D
+
+For information on the particular implementation see `design/instructions.md`. Quirks marked with `Y` are implemented, those marked with `N` are not.
+
+All thats left to do is run some more interesting programs ^^ ( and maybe clean up the code asp )
 
 ### BCD and Rng components, `CXNN` implemented
 
@@ -55,6 +89,8 @@ The stack runs from memory address `0200` (not inclusive) down to `00A0`, allowi
 
 <img src="assets/stack.png" style="width:50%">
 
+also quickly added `FX29` ^^
+
 ### The Keypad and instructions `EX9E`/`EXA1`/`FX0A`
 
 Added a keypad to the interface ( also accessible through the keyboard using keys 1-4,q-r,a-f and y-v ), and wrote programs to test the skip and wait functionality respectively.
@@ -76,7 +112,7 @@ With this, display instructions dont experience the visible screen tearing from 
 
 ### Arithmetic instructions & others
 
-Described (see `design/instructions.mb`) all and implemented multiple remaining instructions. This includes the arithmetic instructions `8...` and some conditional jumps.
+Described (see `design/instructions.md`) all and implemented multiple remaining instructions. This includes the arithmetic instructions `8...` and some conditional jumps.
 Still missing instructions are:
 
 - `E...` reading key press

@@ -130,7 +130,7 @@ Y(VF set to 1 iff I > 0FFF)
 
 wait until key pressed, then store value to VX
 
-### `FX29`
+### `FX29` +
 
 point I to font character of (left)hex value in VX
 
@@ -139,6 +139,8 @@ point I to font character of (left)hex value in VX
 store BCD of VX value into I,I+1,I+2
 does not change I
 
-### `FX55`/`FX65`
+### `FX55`/`FX65` +
 
 store/load X+1 bytes of memory from/into V0-VX
+
+N( changes I to I + X + 1)
