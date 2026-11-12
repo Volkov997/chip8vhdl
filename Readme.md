@@ -47,6 +47,8 @@ These are the connections which the Simulated chip uses to interact with externa
 
 ### loading the program
 
+Currently, the loaded pong game runs at about ~ 1 Tick per Second.
+
 Set the parameters ( file name and gui clock speed ) in `run.py` and then execute everything with `make`. This will start the GUI and provide a debug output on each clock pulse.
 
 Currently, the maximum gui simulated clock frequency is ~200Hz, so this is the default. The parameter `CLOCK_DIV` in `envelope.vhd` is used to sync the timers to 1 count per second.
