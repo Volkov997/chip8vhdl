@@ -151,14 +151,14 @@ fontData = bytearray([
 fontAddress = 0x50
 
 
-progFile = "../programs/test/test_opcode.ch8"
+progFile = "../programs/test/rndtest.ch8"
 progData = None
 with open(progFile, "rb") as f:
     progData = bytearray(f.read())  
 progAddress = 0x200
 
 clockSimHz = 1e5
-realClockHz = 100 #240
+realClockHz = 500 #240
 
 def reg(i):
     return "V"+hex(i)[2::]

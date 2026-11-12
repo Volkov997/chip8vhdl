@@ -31,6 +31,22 @@ These are the connections which the Simulated chip uses to interact with externa
 
 ## Status Logs
 
+### BCD and Rng components, `CXNN` implemented
+
+<img src="assets/components.png" style="width:60%">
+
+Added 2 components which get used in the chip.
+
+Left one concurrently generates a BCD representation of an 8-bit number. The logic uses an unrolled double-dabble algorithm ( instant computation without clock ). Input always mapped to VX
+
+`FX33` was also already implemented but not yet tested.
+
+Right one generates a pseude-random number with each clock pulse using a counter, addition, xor and bitshifts.
+
+Could be made to work even simpler, but this produces a nice random looking output after running it for a while ( test program turns on/off a random pixel in each column, going from left to right and looping):
+
+<img src="assets/random.png" style="width:50%">
+
 ### Working stack
 
 The instructions `2NNN` and `00EE` ( subroutine at `NNN` and return) are now implemented!

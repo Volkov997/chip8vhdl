@@ -73,6 +73,8 @@ architecture Rtl of chip is
 
     signal clockCount : unsigned(15 downto 0) := (others => '0');
     signal firstKey : unsigned(3 downto 0) := (others => '0');
+
+    signal rnd : unsigned(7 downto 0);
 begin
     dispdriver : entity work.dispdriver
         port map(
@@ -105,6 +107,14 @@ begin
         port map(
             hx => VXr,
             BCD => VX_BCD
+        );
+
+    -- rng module 
+
+    randgen : entity work.randgen
+        port map(
+            clock => clock,
+            data => rnd
         );
 
     -- first pressed key
@@ -357,7 +367,7 @@ begin
                 when I_CXNN =>
                     instruction <= EMPTY;
                     wVX := '1';
-                    VX := (others => '0'); -- TODO: actual randoom implementation !!!!
+                    VX := rnd and NN;
 
                 when I_EX9E => -- skip if key 0-F in keypad pressed
                     instruction <= EMPTY;

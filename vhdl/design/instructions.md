@@ -99,7 +99,7 @@ jump to V0+NNN
 
 (possibly jump to VX + NNN/XNN instead)
 
-### `CXNN`
+### `CXNN` +
 
 VX = random between 0 and FF, & with NN
 
@@ -134,7 +134,7 @@ wait until key pressed, then store value to VX
 
 point I to font character of (left)hex value in VX
 
-### `FX33`
+### `FX33` +
 
 store BCD of VX value into I,I+1,I+2
 does not change I
