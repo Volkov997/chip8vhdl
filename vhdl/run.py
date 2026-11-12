@@ -7,7 +7,7 @@ import random
 
 # --- parameters 
 
-progFile = "../programs/test_opcode.ch8"
+progFile = "../programs/Wall.ch8"
 realClockHz = 200
 
 

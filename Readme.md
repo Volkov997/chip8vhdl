@@ -1,8 +1,12 @@
 # Chip-8 implementation using VHDL
 
+<img src="assets/wallpong.png" style="width:80%">
+
+IT WORKSSS !!
+
 ## Summary
 
-This is a project made for hackclub [chipper](https://chipper.hackclub.com/), designing a chip-8 interpreter in VHDL. Since this is my very first time using a HDL, this is not really aimed to be an actual FPGA-ready design ( although i am trying to make it synthesizable ).
+This is a project made for hackclub [chipper](https://chipper.hackclub.com/), designing a chip-8 interpreter in VHDL. Since this is my very first time using a HDL, this is not really aimed to be an actual FPGA-ready design ( mostly synthesizable atleast though )
 
 The interface portion of the language is implemented using a cocotb testbench in python.
 
@@ -14,6 +18,8 @@ Things I've used a lot in making this:
 - [German vhdl intro](https://www.uni-ulm.de/fileadmin/website_uni_ulm/iui.inst.050/vorlesungen/sose08/LaborpraktikumEingebetteteSysteme/Material/Crashkurs_)
 - [this repo](https://github.com/Timendus/chip8-test-suite/tree/main) with test programs (next to self-written ones)
 - No AI was used for writing any of the code/documentation.
+
+I had a lot of fun making this ^^
 
 ## Component ports
 
@@ -52,6 +58,8 @@ Make simulator easier to run ( especially on windows ) and let the user provide 
 Improve simulated frequency by letting cocotb/ghdl handle most of the clock generation and sync it seperately to 700Hz real-time.
 
 Shorten & clean up code ( possibly using the generate keyword )
+
+Maybe make code synthesizable
 
 ## Status Logs
 
