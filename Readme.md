@@ -66,7 +66,7 @@ Maybe make code synthesizable
 
 ### Greatly improved simulation speed
 
-By letting cocotb/ghdl handle the actual clock generation (instead of seperately writing the signal in python), the chip can easily run at 700Hz or more.
+By letting cocotb/ghdl handle the actual clock generation (instead of seperately writing the signal in python), the chip can now easily be simulated at 700Hz or more.
 
 Each display update, the program lets the chip catch up clock cycles, and then enables the display clock to update all pixels.
 Since the display still takes 256 cycles to update, this is useful to prevent screen tearing with games.
