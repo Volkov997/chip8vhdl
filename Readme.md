@@ -35,6 +35,7 @@ These are the connections which the Simulated chip uses to interact with externa
     - output signal to the buzzer
 - `keypad`
     - 16 bit signal with 1 bit per key `0`-`F`
+- `timerClock` seperate clock input for advancing the timers, frequency has to match `TIMER_DIV`, can also be connected to main clock
 - also implements an error signal `err`, used for debugging if an undefined instruction or a stack overflow occurs
 
 ## How to run
@@ -49,21 +50,28 @@ These are the connections which the Simulated chip uses to interact with externa
 
 Currently, the loaded pong game runs at about ~ 1 Tick per Second.
 
-Set the parameters ( file name and gui clock speed ) in `run.py` and then execute everything with `make`. This will start the GUI and provide a debug output on each clock pulse.
+Set the parameters ( file name and chip clock speed ) in `run.py` and then execute everything with `make`. This will start the GUI and provide a debug output on each clock pulse.
 
-Currently, the maximum gui simulated clock frequency is ~200Hz, so this is the default. The parameter `CLOCK_DIV` in `envelope.vhd` is used to sync the timers to 1 count per second.
+The parameter `TIMER_DIV` in `envelope.vhd` is used to sync the timers to 1 count per second, with the default being set to 50, to match the seperate timer clock
 
 ## possible optimizations & improvements ( TODO ? )
 
 Make simulator easier to run ( especially on windows ) and let the user provide arguments instead of modifying the file.
-
-Improve simulated frequency by letting cocotb/ghdl handle most of the clock generation and sync it seperately to 700Hz real-time.
 
 Shorten & clean up code ( possibly using the generate keyword )
 
 Maybe make code synthesizable
 
 ## Status Logs
+
+### Greatly improved simulation speed
+
+By letting cocotb/ghdl handle the actual clock generation (instead of seperately writing the signal in python), the chip can easily run at 700Hz or more.
+
+Each display update, the program lets the chip catch up clock cycles, and then enables the display clock to update all pixels.
+Since the display still takes 256 cycles to update, this is useful to prevent screen tearing with games.
+
+There also is a seperate timer clock, so the main clock can be freely adjusted without having to change the clock division for the 1Hz timers.
 
 ### All instrucions done !!!
 

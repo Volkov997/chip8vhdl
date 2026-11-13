@@ -4,7 +4,8 @@ use IEEE.Numeric_Std.all;
 
 entity envelope is
     port (
-        clockMain : in std_logic
+        clockMain : in std_logic;
+        clockTimer : in std_logic
     );
 end entity envelope;
 architecture Rtl of envelope is
@@ -14,9 +15,10 @@ architecture Rtl of envelope is
     signal Sram_we : std_logic := '0';
 begin
     chipdut : entity work.chip
-        generic map(CLOCK_DIV => 200)
+        generic map(TIMER_DIV => 50)
         port map(
             clock => clockMain,
+            timerClock => clockTimer,
             ram_we => Sram_we,
             ram_address => Sram_address,
             ram_din => Sram_dr,

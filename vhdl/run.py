@@ -2,20 +2,24 @@ import cocotb
 from cocotb.triggers import *
 from cocotb.handle import *
 from cocotb.clock import Clock
-import random
 
 
 # --- parameters 
 
-progFile = "../programs/Wall.ch8"
-realClockHz = 200
+progFile = "../programs/test/rndtest.ch8"
+clockSimHz = 1200;
 
+timerHz = 150 # chip is configured for 50, changing just this will sped up timers
+updateHz = 50
 
 # --- GUI
 
 import tkinter as tk
 import time
 interface = tk.Tk()
+interface.title = "simulation GUI"
+interface.resizable(width=False, height=False)
+
 interface_closed = False
 
 def interface_on_close():
@@ -26,11 +30,10 @@ def interface_on_close():
 interface.protocol("WM_DELETE_WINDOW", interface_on_close)
 interface.bind("<Escape>", lambda _: interface_on_close())
 
-
 # canvas
 DISP_W = 64
 DISP_H = 32
-PIX = 15
+PIX = 20
 canv = tk.Canvas(interface, bg="black",height=DISP_H*PIX,width=DISP_W*PIX)
 
 displayGrid = []
@@ -56,7 +59,7 @@ button_layout = [
 buttons = []
 button_data = 0x0000
 button_frame = tk.Frame(interface)
-button_frame.pack(expand=True)
+button_frame.pack(expand=True,fill="x")
 def button_callback (n,pressed):
     global button_data
     if (pressed):
@@ -74,7 +77,7 @@ for i in range(16):
     
     b.grid(
         row=i//4,
-        column=i%4,
+        column=1+i%4,
         sticky="w"
     )
 
@@ -118,20 +121,30 @@ interface.bind("<KeyRelease>", lambda _: key_handler(_,False))
 
 
 # beeper
+
 beeper_vis_canvas = tk.Canvas(button_frame,height=2*PIX,width=2*PIX)
 beeper_vis = beeper_vis_canvas.create_oval(2,2,2*PIX-2,2*PIX-2,fill="black",width=2,outline="black")
 beeper_vis_canvas.grid(
-    row=0, column=4
+    row=0, column=5
 )
 async def beeperUpdate(dut):
     while True:
         await Edge(dut.beep)
         if (dut.beep.value == 1):
             beeper_vis_canvas.itemconfig(beeper_vis, fill="red")
+
         else:
             beeper_vis_canvas.itemconfig(beeper_vis, fill="black")
 
 # --- 
+
+
+# clock debug output
+
+
+clock_display = tk.Label(button_frame,text="-\n-\n-",anchor="center",justify="left",width=2*PIX)
+clock_display.grid(row=0,column=0,sticky="w")
+
 
 # --- Simulation
 
@@ -161,9 +174,6 @@ with open(progFile, "rb") as f:
     progData = bytearray(f.read())  
 progAddress = 0x200
 
-
-clockSimHz = 1e5
-
 def reg(i):
     return "V"+hex(i)[2::]
 
@@ -177,10 +187,6 @@ async def run(main):
     cocotb.start_soon(displayUpdate(chip))
     cocotb.start_soon(beeperUpdate(chip))
 
-    #faster clock for display
-    dclock = Clock(chip.dispdriver.clock, 100, unit="ns")
-    cocotb.start_soon(dclock.start())
-
     main.clockMain.value = 0
 
     chip.chipEN.value = 0
@@ -188,70 +194,85 @@ async def run(main):
     await write_ram(main,progData,progAddress)
 
     chip.PC.value = 0x200
-    await pulseH(main.clockMain,1e9/clockSimHz)
-    await pulseH(main.clockMain,1e9/clockSimHz)
+    await pulseH(main.clockMain,1e9//clockSimHz)
+    await pulseH(main.clockMain,1e9//clockSimHz)
 
 
     chip.chipEN.value = 1
 
-    await dump_ram(ram,160,0x200)
+    dclock = Clock(chip.dispdriver.driveClock, 1e9//4000, unit="ns") # faster seperate clock to avoid screen tearing
 
-    lastClock = 0
-    clockVal = 1
-    cycles = 0
+    mainClock = Clock(main.clockMain, 1e9//clockSimHz, unit="ns")
+    timerClock = Clock(main.clockTimer, 1e9//timerHz, unit="ns")
 
-    dTsmooth = 1
+    #await dump_ram(ram,160,0x200)
+
+    lastUpdate = time.time()
+    lastCycle = 0
+
+    lastTextUpdate = 0
 
     while True:
         if (interface_closed):
             break
         interface.update()
-        if (time.time() - lastClock > 1/realClockHz/2):
+        if (time.time() - lastUpdate > 1/updateHz):
 
-            dTsmooth = dTsmooth*0.9 + (time.time() - lastClock)*0.1
-            lastClock = time.time()
-
-            clockVal = 1-clockVal
+            dT = time.time() - lastUpdate
+            lastUpdate = time.time()
 
             # key can either be pressed on interface or keyboard
-            if (clockVal == 1):
-                update_debounce()
-                chip.keypad.value = button_data | key_buttons_data
+            update_debounce()
+            chip.keypad.value = button_data | key_buttons_data
 
-            
-            main.clockMain.value = clockVal
             #sync chip time with real time
-            await Timer(1000/clockSimHz/2, unit='ms')
-       
-            if (clockVal == 1):
-                cocotb.log.info("RE "+str(cycles))
-                cocotb.log.info(f"keypad {chip.keypad.value}, timers D{chip.timer1.value}, S{chip.timer2.value} > {chip.beep.value}")
-                if (chip.err.value != 0):
-                    cocotb.log.error(f"chip error signal {chip.err.value}")
-                    break
-                cocotb.log.info(f"instruction {chip.instruction.value} , substep {chip.subcounter.value}, stack <= {hex(chip.stackP.value)}, I @ {hex(chip.I.value)}")
-                cocotb.log.info(f"PC @ {hex(chip.pc.value)}, raw instruction {chip.ibytes_sig.value} = {hex(chip.ibytes_sig.value) + ("?" if chip.instruction.value == 0 else "")}")
-                cocotb.log.info(f"{main.Sram_address.value} => ram => {ram.dataout.value}")
-                cocotb.log.info(" ".join([ f"{reg(i)}: {hex(chip[reg(i)].value)[2::]}," for i in range(16)]))
+            cocotb.start_soon(mainClock.start())
+            cocotb.start_soon(timerClock.start())
+            await Timer(dT,unit="sec",round_mode="round")
+            mainClock.stop()
+            timerClock.stop()
+            cocotb.start_soon(dclock.start())
+            await ClockCycles(chip.dispdriver.driveClock,280)
+            dclock.stop()
+            #
 
-                cocotb.log.info(f"running at ~{int(10/(2*(dTsmooth)))/10}Hz")
-                cocotb.log.info("\n")
 
-                #await dump_ram(ram,80,0x200)
-                cycles +=1
+            cycle = int(chip.totalCycles.value)
+            dClock = cycle-lastCycle
+            lastCycle = cycle
+
+            measureUHz = round(1/dT)
+            measureCHz = round(dClock/dT)
+            if (lastUpdate - lastTextUpdate> 0.5): # prevernt text flickering
+                clock_display.config(text=f"chip:\t{measureCHz}Hz\nupdate:\t{measureUHz}Hz\ntimer speed:\t{round(10*timerHz/int(chip.TIMER_DIV.value))/10}")
+                lastTextUpdate=lastUpdate
+
+            cocotb.log.info(f"chip state after clock cycle {cycle}")
+            await showState(chip)
 
 # ---
 
 # --- helpers
 
+async def showState(chip):
+    cocotb.log.info(f"keypad {chip.keypad.value}, timers @ {chip.timerCount.value} : D{chip.timer1.value}, S{chip.timer2.value} > {chip.beep.value}")
+    if (chip.err.value != 0):
+        cocotb.log.error(f"chip error signal {chip.err.value}")
+    cocotb.log.info(f"instruction {chip.instruction.value} , substep {chip.subcounter.value}, stack <= {hex(chip.stackP.value)}, I @ {hex(chip.I.value)}")
+    cocotb.log.info(f"PC @ {hex(chip.pc.value)}, raw instruction {chip.ibytes_sig.value} = {hex(chip.ibytes_sig.value) + ("?" if chip.instruction.value == 0 else "")}")
+    cocotb.log.info(f"{chip.ram_address.value} => ram => {chip.ram_din.value}")
+    cocotb.log.info(" ".join([ f"{reg(i)}: {hex(chip[reg(i)].value)[2::]}," for i in range(16)]))
+
+    #cocotb.log.info(f"running at ~{int(10/(2*(dTsmooth)))/10}Hz")
+    cocotb.log.info("\n")
+
 async def pulseH(pin, dur):
     pin.value = 0
-    await Timer(dur//2, unit="ns")
+    await Timer(dur/2, unit="ns",round_mode="ceil")
     pin.value = 1
-    await Timer(dur//2, unit="ns")
+    await Timer(dur/2, unit="ns",round_mode="ceil")
     pin.value = 0
     cocotb.log.debug("pulsed")
-
 
 async def displayUpdate(dut):
     while True:

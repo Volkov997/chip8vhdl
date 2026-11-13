@@ -4,10 +4,11 @@ use IEEE.Numeric_Std.all;
 
 entity chip is
     generic (
-        CLOCK_DIV : integer := 1024 -- up to 65.535kHz, clock div for 1 sec timer
+        TIMER_DIV : integer := 1024 -- clock div for 1 sec timer
     );
     port (
         clock : in std_logic;
+        timerClock : in std_logic;
         ram_we : out std_logic := '0';
         ram_address : out std_logic_vector (11 downto 0);
         ram_din : in std_logic_vector (7 downto 0);
@@ -71,18 +72,23 @@ architecture Rtl of chip is
     signal drawBufPosY : unsigned(4 downto 0);
     signal ramDrawSlice : unsigned(2 downto 0) := (others => '0');
 
-    signal clockCount : unsigned(15 downto 0) := (others => '0');
+    signal timerCount : unsigned(15 downto 0) := (others => '0');
     signal firstKey : unsigned(3 downto 0) := (others => '0');
 
     signal rnd : unsigned(7 downto 0);
+    signal timerDec : std_logic := '0';
+    signal timerDecDone : std_logic := '0';
+
+    signal totalCycles : unsigned(15 downto 0) := (others => '0');
 begin
     dispdriver : entity work.dispdriver
         port map(
-            clock => '0',
+            clock => clock,
             update => display_update,
             buf => display_buf,
             dispClk => display_clk,
-            data => display_dout
+            data => display_dout,
+            driveClock => '0'
         );
 
     --read from VX/VY
@@ -135,6 +141,20 @@ begin
                 x"e" when keypad(14) = '1' else
                 x"f"; --also default case if all 0
 
+    -- update timers
+    Timer : process (timerClock) is
+    begin
+        if (chipEN = '1' and rising_edge(timerClock)) then
+            timerCount <= timerCount + 1;
+            if timerCount >= 50 then
+                timerCount <= (others => '0');
+                timerDec <= '1';
+            elsif (timerDecDone = '1') then -- ! TIMER_DIV >= 2
+                timerDec <= '0';
+            end if;
+        end if;
+    end process;
+
     -- clocked process
 
     Exec : process (clock) is
@@ -153,19 +173,19 @@ begin
         variable calc : unsigned(15 downto 0) := (others => '0');
     begin
         if (chipEN = '1' and rising_edge(clock)) then
-            -- update timers
-            clockCount <= clockCount + 1;
-            if clockCount >= CLOCK_DIV then
-                clockCount <= (others => '0');
+            totalCycles <= totalCycles + 1;
+            -- decrease timers
+            if (timerDec = '1' and timerDecDone = '0') then
                 if not (timer1 = 0) then
                     timer1 <= timer1 - 1;
                 end if;
                 if not (timer2 = 0) then
                     timer2 <= timer2 - 1;
-                else
                 end if;
+                timerDecDone <= '1';
+            elsif (timerDec = '0') then
+                timerDecDone <= '0';
             end if;
-
             -- fetch/execute
             case instruction is
 
@@ -632,7 +652,7 @@ begin
             XSel <= X;
             YSel <= Y;
 
-            if display_update = '1' then -- update should get single clock pulse
+            if display_update = '1' then
                 display_update <= '0';
             end if;
 
